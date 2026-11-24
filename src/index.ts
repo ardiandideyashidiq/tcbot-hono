@@ -1,7 +1,6 @@
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import type { AppEnv } from './lib/env';
-import { renderer } from './renderer';
 import healthApp from './routes/health';
 import webhookApp from './routes/webhook';
 
@@ -24,10 +23,7 @@ const app = new Hono<AppEnv>()
     return c.text('Not Found', 404);
   })
   .route('/api/health', healthApp)
-  .route('/webhook', webhookApp)
-  .get('/', renderer, (c) => {
-    return c.render(<h1>tcbot-hono</h1>);
-  });
+  .route('/webhook', webhookApp);
 
 export type AppType = typeof app;
 export default app;
