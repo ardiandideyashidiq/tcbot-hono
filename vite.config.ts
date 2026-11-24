@@ -6,6 +6,9 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   plugins: [react(), tailwindcss(), cloudflare()],
+  server: {
+    allowedHosts: ['.trycloudflare.com'],
+  },
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, './src'),
