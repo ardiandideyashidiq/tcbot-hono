@@ -1,0 +1,490 @@
+import { Composer } from 'grammy';
+import type { BotContext } from '../context';
+import {
+  getActiveConnectedChatIds,
+  getUserRole,
+  isStaffRole,
+  parseDurationSeconds,
+  resolveTargetUser,
+} from '../db';
+import { t } from '../i18n';
+
+export const moderationComposer = new Composer<BotContext>();
+
+async function ensureTargetPlaceholderUser(
+  ctx: BotContext,
+  userId: number,
+): Promise<void> {
+  if (!ctx.supabase) return;
+  await ctx.supabase
+    .from('telegram_users')
+    .upsert(
+      { user_id: userId },
+      { onConflict: 'user_id', ignoreDuplicates: true },
+    );
+}
+
+moderationComposer.command(['tcban', 'tcb'], async (ctx) => {
+  const role = await getUserRole(
+    ctx.supabase,
+    ctx.from?.id ?? 0,
+    ctx.appEnv.OWNER_ID,
+  );
+  if (!isStaffRole(role)) {
+    await ctx.reply(t(ctx.locale, 'err.staff_only'));
+    return;
+  }
+
+  const target = await resolveTargetUser(
+    ctx.supabase,
+    ctx.match ?? '',
+    ctx.message?.reply_to_message?.from,
+  );
+  if (!target) {
+    await ctx.reply(t(ctx.locale, 'err.target_missing'));
+    return;
+  }
+  if (target.userId === ctx.from?.id) {
+    await ctx.reply(t(ctx.locale, 'err.self_target'));
+    return;
+  }
+
+  const durationSeconds = parseDurationSeconds(target.remainingArgs[0]);
+  const reasonParts = durationSeconds
+    ? target.remainingArgs.slice(1)
+    : target.remainingArgs;
+  const reason = reasonParts.join(' ').trim() || 'Federation ban';
+  const expiresAt = durationSeconds
+    ? new Date(Date.now() + durationSeconds * 1000).toISOString()
+    : null;
+
+  let ref = 'local';
+  let affectedGroups = 0;
+
+  if (ctx.supabase) {
+    await ensureTargetPlaceholderUser(ctx, target.userId);
+    const chatIds = await getActiveConnectedChatIds(ctx.supabase);
+
+    const { data: created } = await ctx.supabase
+      .from('moderation_actions')
+      .insert({
+        chat_id: ctx.chat.id,
+        origin_chat_id: ctx.chat.id,
+        action_type: 'ban',
+        target_user_id: target.userId,
+        actor_user_id: ctx.from?.id ?? null,
+        reason,
+        duration_seconds: durationSeconds,
+        expires_at: expiresAt,
+        status: 'active',
+        scope_type: 'community',
+      })
+      .select('external_ref')
+      .single();
+
+    if (created?.external_ref) {
+      ref = created.external_ref;
+    }
+
+    const targets = chatIds.length > 0 ? chatIds : [ctx.chat.id];
+    const results = await Promise.allSettled(
+      targets.map((cid) =>
+        ctx.api.banChatMember(cid, target.userId, {
+          until_date: expiresAt
+            ? Math.floor(new Date(expiresAt).getTime() / 1000)
+            : undefined,
+        }),
+      ),
+    );
+    affectedGroups = results.filter((r) => r.status === 'fulfilled').length;
+  }
+
+  await ctx.reply(
+    t(ctx.locale, 'mod.banned', {
+      target: target.label,
+      count: affectedGroups,
+      ref,
+    }),
+  );
+});
+
+moderationComposer.command(['tcunban', 'tcunb'], async (ctx) => {
+  const role = await getUserRole(
+    ctx.supabase,
+    ctx.from?.id ?? 0,
+    ctx.appEnv.OWNER_ID,
+  );
+  if (!isStaffRole(role)) {
+    await ctx.reply(t(ctx.locale, 'err.staff_only'));
+    return;
+  }
+
+  const target = await resolveTargetUser(
+    ctx.supabase,
+    ctx.match ?? '',
+    ctx.message?.reply_to_message?.from,
+  );
+  if (!target) {
+    await ctx.reply(t(ctx.locale, 'err.target_missing'));
+    return;
+  }
+
+  let affectedGroups = 0;
+  if (ctx.supabase) {
+    await ctx.supabase
+      .from('moderation_actions')
+      .update({
+        status: 'revoked',
+        revoked_at: new Date().toISOString(),
+        revoked_by_user_id: ctx.from?.id ?? null,
+      })
+      .eq('target_user_id', target.userId)
+      .eq('action_type', 'ban')
+      .eq('status', 'active');
+
+    const chatIds = await getActiveConnectedChatIds(ctx.supabase);
+    const targets = chatIds.length > 0 ? chatIds : [ctx.chat.id];
+    const results = await Promise.allSettled(
+      targets.map((cid) =>
+        ctx.api.unbanChatMember(cid, target.userId, { only_if_banned: true }),
+      ),
+    );
+    affectedGroups = results.filter((r) => r.status === 'fulfilled').length;
+  }
+
+  await ctx.reply(
+    t(ctx.locale, 'mod.unbanned', {
+      target: target.label,
+      count: affectedGroups,
+    }),
+  );
+});
+
+moderationComposer.command(['tcmute', 'tcm'], async (ctx) => {
+  const role = await getUserRole(
+    ctx.supabase,
+    ctx.from?.id ?? 0,
+    ctx.appEnv.OWNER_ID,
+  );
+  if (!isStaffRole(role)) {
+    await ctx.reply(t(ctx.locale, 'err.staff_only'));
+    return;
+  }
+
+  const target = await resolveTargetUser(
+    ctx.supabase,
+    ctx.match ?? '',
+    ctx.message?.reply_to_message?.from,
+  );
+  if (!target) {
+    await ctx.reply(t(ctx.locale, 'err.target_missing'));
+    return;
+  }
+  if (target.userId === ctx.from?.id) {
+    await ctx.reply(t(ctx.locale, 'err.self_target'));
+    return;
+  }
+
+  const durationSeconds = parseDurationSeconds(target.remainingArgs[0]);
+  const reasonParts = durationSeconds
+    ? target.remainingArgs.slice(1)
+    : target.remainingArgs;
+  const reason = reasonParts.join(' ').trim() || 'Federation mute';
+  const expiresAt = durationSeconds
+    ? new Date(Date.now() + durationSeconds * 1000).toISOString()
+    : null;
+
+  let ref = 'local';
+  let affectedGroups = 0;
+
+  if (ctx.supabase) {
+    await ensureTargetPlaceholderUser(ctx, target.userId);
+    const chatIds = await getActiveConnectedChatIds(ctx.supabase);
+
+    const { data: created } = await ctx.supabase
+      .from('moderation_actions')
+      .insert({
+        chat_id: ctx.chat.id,
+        origin_chat_id: ctx.chat.id,
+        action_type: 'mute',
+        target_user_id: target.userId,
+        actor_user_id: ctx.from?.id ?? null,
+        reason,
+        duration_seconds: durationSeconds,
+        expires_at: expiresAt,
+        status: 'active',
+        scope_type: 'community',
+      })
+      .select('external_ref')
+      .single();
+
+    if (created?.external_ref) {
+      ref = created.external_ref;
+    }
+
+    const targets = chatIds.length > 0 ? chatIds : [ctx.chat.id];
+    const results = await Promise.allSettled(
+      targets.map((cid) =>
+        ctx.api.restrictChatMember(
+          cid,
+          target.userId,
+          { can_send_messages: false },
+          {
+            until_date: expiresAt
+              ? Math.floor(new Date(expiresAt).getTime() / 1000)
+              : undefined,
+          },
+        ),
+      ),
+    );
+    affectedGroups = results.filter((r) => r.status === 'fulfilled').length;
+  }
+
+  await ctx.reply(
+    t(ctx.locale, 'mod.muted', {
+      target: target.label,
+      count: affectedGroups,
+      ref,
+    }),
+  );
+});
+
+moderationComposer.command(['tcunmute', 'tcunm'], async (ctx) => {
+  const role = await getUserRole(
+    ctx.supabase,
+    ctx.from?.id ?? 0,
+    ctx.appEnv.OWNER_ID,
+  );
+  if (!isStaffRole(role)) {
+    await ctx.reply(t(ctx.locale, 'err.staff_only'));
+    return;
+  }
+
+  const target = await resolveTargetUser(
+    ctx.supabase,
+    ctx.match ?? '',
+    ctx.message?.reply_to_message?.from,
+  );
+  if (!target) {
+    await ctx.reply(t(ctx.locale, 'err.target_missing'));
+    return;
+  }
+
+  let affectedGroups = 0;
+  if (ctx.supabase) {
+    await ctx.supabase
+      .from('moderation_actions')
+      .update({
+        status: 'revoked',
+        revoked_at: new Date().toISOString(),
+        revoked_by_user_id: ctx.from?.id ?? null,
+      })
+      .eq('target_user_id', target.userId)
+      .eq('action_type', 'mute')
+      .eq('status', 'active');
+
+    const chatIds = await getActiveConnectedChatIds(ctx.supabase);
+    const targets = chatIds.length > 0 ? chatIds : [ctx.chat.id];
+    const results = await Promise.allSettled(
+      targets.map((cid) =>
+        ctx.api.restrictChatMember(cid, target.userId, {
+          can_send_messages: true,
+          can_send_audios: true,
+          can_send_documents: true,
+          can_send_photos: true,
+          can_send_videos: true,
+          can_send_video_notes: true,
+          can_send_voice_notes: true,
+          can_send_polls: true,
+          can_send_other_messages: true,
+          can_add_web_page_previews: true,
+        }),
+      ),
+    );
+    affectedGroups = results.filter((r) => r.status === 'fulfilled').length;
+  }
+
+  await ctx.reply(
+    t(ctx.locale, 'mod.unmuted', {
+      target: target.label,
+      count: affectedGroups,
+    }),
+  );
+});
+
+moderationComposer.command(['tcwarn', 'tcw'], async (ctx) => {
+  const role = await getUserRole(
+    ctx.supabase,
+    ctx.from?.id ?? 0,
+    ctx.appEnv.OWNER_ID,
+  );
+  if (!isStaffRole(role)) {
+    await ctx.reply(t(ctx.locale, 'err.staff_only'));
+    return;
+  }
+
+  const target = await resolveTargetUser(
+    ctx.supabase,
+    ctx.match ?? '',
+    ctx.message?.reply_to_message?.from,
+  );
+  if (!target) {
+    await ctx.reply(t(ctx.locale, 'err.target_missing'));
+    return;
+  }
+  if (target.userId === ctx.from?.id) {
+    await ctx.reply(t(ctx.locale, 'err.self_target'));
+    return;
+  }
+
+  const warnLimit = Math.max(1, Number(ctx.appEnv.WARN_LIMIT) || 3);
+  const reason = target.remainingArgs.join(' ').trim() || 'Rule violation';
+  let ref = 'local';
+  let warnCount = 1;
+
+  if (ctx.supabase) {
+    await ensureTargetPlaceholderUser(ctx, target.userId);
+    const { data: created } = await ctx.supabase
+      .from('moderation_actions')
+      .insert({
+        chat_id: ctx.chat.id,
+        origin_chat_id: ctx.chat.id,
+        action_type: 'warn',
+        target_user_id: target.userId,
+        actor_user_id: ctx.from?.id ?? null,
+        reason,
+        status: 'completed',
+        scope_type: 'chat',
+      })
+      .select('external_ref')
+      .single();
+
+    if (created?.external_ref) {
+      ref = created.external_ref;
+    }
+
+    const { count } = await ctx.supabase
+      .from('moderation_actions')
+      .select('id', { count: 'exact', head: true })
+      .eq('chat_id', ctx.chat.id)
+      .eq('target_user_id', target.userId)
+      .eq('action_type', 'warn')
+      .eq('status', 'completed');
+
+    warnCount = count ?? 1;
+
+    if (warnCount >= warnLimit) {
+      await ctx.supabase.from('moderation_actions').insert({
+        chat_id: ctx.chat.id,
+        origin_chat_id: ctx.chat.id,
+        action_type: 'ban',
+        target_user_id: target.userId,
+        actor_user_id: ctx.from?.id ?? null,
+        reason: `Auto-ban: warn threshold (${warnCount}/${warnLimit})`,
+        status: 'active',
+        action_origin: 'automated',
+        scope_type: 'community',
+      });
+
+      const chatIds = await getActiveConnectedChatIds(ctx.supabase);
+      const targets = chatIds.length > 0 ? chatIds : [ctx.chat.id];
+      await Promise.allSettled(
+        targets.map((cid) => ctx.api.banChatMember(cid, target.userId)),
+      );
+
+      await ctx.reply(
+        t(ctx.locale, 'mod.autoban', {
+          warns: warnCount,
+          limit: warnLimit,
+          target: target.label,
+        }),
+      );
+      return;
+    }
+  }
+
+  await ctx.reply(
+    t(ctx.locale, 'mod.warned', {
+      target: target.label,
+      warns: warnCount,
+      limit: warnLimit,
+      ref,
+    }),
+  );
+});
+
+moderationComposer.command(['checkme', 'cme', 'check', 'c'], async (ctx) => {
+  const isSelf =
+    ctx.message?.text?.startsWith('/checkme') ||
+    ctx.message?.text?.startsWith('/cme');
+
+  let targetId = ctx.from?.id ?? 0;
+  let targetLabel = ctx.from?.username
+    ? `@${ctx.from.username}`
+    : String(targetId);
+
+  if (!isSelf) {
+    const role = await getUserRole(
+      ctx.supabase,
+      ctx.from?.id ?? 0,
+      ctx.appEnv.OWNER_ID,
+    );
+    if (!isStaffRole(role)) {
+      await ctx.reply(t(ctx.locale, 'err.staff_only'));
+      return;
+    }
+    const target = await resolveTargetUser(
+      ctx.supabase,
+      ctx.match ?? '',
+      ctx.message?.reply_to_message?.from,
+    );
+    if (target) {
+      targetId = target.userId;
+      targetLabel = target.label;
+    }
+  }
+
+  if (!ctx.supabase || !targetId) {
+    await ctx.reply(t(ctx.locale, 'check.clean', { target: targetLabel }));
+    return;
+  }
+
+  const [{ data: ban }, { data: mute }, { count: warnCount }] =
+    await Promise.all([
+      ctx.supabase
+        .from('moderation_actions')
+        .select('external_ref')
+        .eq('target_user_id', targetId)
+        .eq('action_type', 'ban')
+        .eq('status', 'active')
+        .maybeSingle(),
+      ctx.supabase
+        .from('moderation_actions')
+        .select('external_ref')
+        .eq('target_user_id', targetId)
+        .eq('action_type', 'mute')
+        .eq('status', 'active')
+        .maybeSingle(),
+      ctx.supabase
+        .from('moderation_actions')
+        .select('id', { count: 'exact', head: true })
+        .eq('target_user_id', targetId)
+        .eq('action_type', 'warn')
+        .eq('status', 'completed'),
+    ]);
+
+  const warns = warnCount ?? 0;
+  if (!ban && !mute && warns === 0) {
+    await ctx.reply(t(ctx.locale, 'check.clean', { target: targetLabel }));
+    return;
+  }
+
+  await ctx.reply(
+    t(ctx.locale, 'check.summary', {
+      target: targetLabel,
+      ban: ban ? ban.external_ref : '-',
+      mute: mute ? mute.external_ref : '-',
+      warns,
+    }),
+  );
+});
