@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tcbot-hono",
+  "compatibility_date": "2025-08-03",
+  "main": "./src/index.tsx",
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "COMMUNITY_NAME": "Bot",
+    "PREFIXES": "/,!,.",
+    "DB_SCHEMA": "public",
+    "ALBUM_DEBOUNCE_SECONDS": "4",
+    "PROMOTION_REQUEST_TTL_DAYS": "7",
+    "WARN_LIMIT": "3",
+    "FED_WARN_LIMIT": "0",
+    "WARN_EXPIRY_DAYS": "0",
+    "LOG_LEVEL": "INFO"
+  }
+}
