@@ -7,6 +7,7 @@ import { groupsComposer } from './composers/groups';
 import { moderationComposer } from './composers/moderation';
 import type { BotContext } from './context';
 import {
+  ensureOwnerAssignment,
   resolveUserLocale,
   upsertTelegramChat,
   upsertTelegramUser,
@@ -27,6 +28,11 @@ export function createBot(env: CloudflareBindings): Bot<BotContext> {
         ctx.from ? upsertTelegramUser(supabase, ctx.from) : Promise.resolve(),
         ctx.chat ? upsertTelegramChat(supabase, ctx.chat) : Promise.resolve(),
       ]);
+      if (ctx.from) {
+        await ensureOwnerAssignment(supabase, ctx.from.id, env.OWNER_ID).catch(
+          () => {},
+        );
+      }
     }
 
     ctx.locale = await resolveUserLocale(

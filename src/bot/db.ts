@@ -105,6 +105,33 @@ export async function getUserRole(
   return null;
 }
 
+export async function ensureOwnerAssignment(
+  supabase: TypedSupabaseClient,
+  userId: number,
+  ownerIdEnv: string,
+): Promise<void> {
+  const envOwner = Number(ownerIdEnv);
+  if (!Number.isFinite(envOwner) || envOwner <= 0 || userId !== envOwner) {
+    return;
+  }
+
+  const { data: existing } = await supabase
+    .from('role_assignments')
+    .select('id')
+    .eq('role_key', 'owner')
+    .eq('status', 'active')
+    .maybeSingle();
+
+  if (!existing) {
+    await supabase.from('role_assignments').insert({
+      user_id: userId,
+      role_key: 'owner',
+      assigned_by_user_id: userId,
+      status: 'active',
+    });
+  }
+}
+
 export function isStaffRole(role: RoleKey | null): boolean {
   return (
     role === 'owner' ||
