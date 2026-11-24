@@ -1,6 +1,5 @@
-import { hc } from 'hono/client';
-import { Moon, Search, Sun } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { Moon, RefreshCw, Search, Sun } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -36,13 +35,31 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/use-mobile';
-import type { AppType } from '../index';
 import { AppSidebar } from './components/AppSidebar';
 import { CaseDossier } from './components/CaseDossier';
-import { INITIAL_CASES } from './data/mock-ledger';
+import {
+  type BanRow,
+  BansTable,
+  type GroupRow,
+  GroupsTable,
+  type RuleRow,
+  RulesTable,
+  type StaffRow,
+  StaffTable,
+  type WarnRow,
+  WarnsTable,
+} from './components/SectionTables';
+import { api } from './lib/api';
 import type { CaseStatus, LedgerCase, LedgerSection } from './types';
 
-const api = hc<AppType>('/');
+const SECTION_TITLES: Record<LedgerSection, string> = {
+  appeals: 'Antrean banding',
+  bans: 'Daftar ban',
+  warns: 'Catatan peringatan',
+  groups: 'Grup terhubung',
+  rules: 'Aturan komunitas',
+  staff: 'Staf dan peran',
+};
 
 const STATUS_LABELS: Record<CaseStatus, string> = {
   pending: 'Menunggu',
@@ -55,15 +72,21 @@ export function App() {
   const isMobile = useIsMobile();
   const [darkMode, setDarkMode] = useState(false);
   const [activeSection, setActiveSection] = useState<LedgerSection>('appeals');
-  const [cases, setCases] = useState<LedgerCase[]>(INITIAL_CASES);
+
+  const [cases, setCases] = useState<LedgerCase[]>([]);
+  const [bans, setBans] = useState<BanRow[]>([]);
+  const [warns, setWarns] = useState<WarnRow[]>([]);
+  const [groups, setGroups] = useState<GroupRow[]>([]);
+  const [rules, setRules] = useState<RuleRow[]>([]);
+  const [staff, setStaff] = useState<StaffRow[]>([]);
+
+  const [loadingSection, setLoadingSection] = useState(false);
   const [statusTab, setStatusTab] = useState<'all' | 'pending' | 'history'>(
     'all',
   );
   const [tierFilter, setTierFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedId, setSelectedId] = useState<string | null>(
-    INITIAL_CASES[0]?.id ?? null,
-  );
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [healthStatus, setHealthStatus] = useState<
     'loading' | 'ok' | 'degraded'
@@ -77,18 +100,67 @@ export function App() {
     let active = true;
     api.api.health
       .$get({ query: {} })
-      .then(async (res) => {
-        if (!active) return;
-        setHealthStatus(res.ok ? 'ok' : 'degraded');
+      .then((res) => {
+        if (active) setHealthStatus(res.ok ? 'ok' : 'degraded');
       })
       .catch(() => {
-        if (!active) return;
-        setHealthStatus('degraded');
+        if (active) setHealthStatus('degraded');
       });
     return () => {
       active = false;
     };
   }, []);
+
+  const loadSectionData = useCallback(async (section: LedgerSection) => {
+    setLoadingSection(true);
+    try {
+      if (section === 'appeals') {
+        const res = await api.api.ledger.appeals.$get();
+        if (!res.ok) throw new Error('Gagal memuat data banding');
+        const data = await res.json();
+        setCases(data.items);
+        setSelectedId((prev) => prev ?? data.items[0]?.id ?? null);
+      } else if (section === 'bans') {
+        const res = await api.api.ledger.bans.$get();
+        if (!res.ok) throw new Error('Gagal memuat daftar ban');
+        const data = await res.json();
+        setBans(data.items);
+      } else if (section === 'warns') {
+        const res = await api.api.ledger.warns.$get();
+        if (!res.ok) throw new Error('Gagal memuat daftar peringatan');
+        const data = await res.json();
+        setWarns(data.items);
+      } else if (section === 'groups') {
+        const res = await api.api.ledger.groups.$get();
+        if (!res.ok) throw new Error('Gagal memuat grup terhubung');
+        const data = await res.json();
+        setGroups(data.items);
+      } else if (section === 'rules') {
+        const res = await api.api.ledger.rules.$get();
+        if (!res.ok) throw new Error('Gagal memuat aturan');
+        const data = await res.json();
+        setRules(data.items);
+      } else if (section === 'staff') {
+        const res = await api.api.ledger.staff.$get();
+        if (!res.ok) throw new Error('Gagal memuat daftar staf');
+        const data = await res.json();
+        setStaff(data.items);
+      }
+    } catch (err) {
+      toast('Gagal memuat data', {
+        description:
+          err instanceof Error
+            ? err.message
+            : 'Periksa koneksi API Hono dan Supabase.',
+      });
+    } finally {
+      setLoadingSection(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadSectionData(activeSection);
+  }, [activeSection, loadSectionData]);
 
   const filteredCases = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -131,30 +203,77 @@ export function App() {
     }
   };
 
-  const handleDecide = (
+  const handleDecide = async (
     caseId: string,
     nextStatus: Extract<CaseStatus, 'approved' | 'rejected'>,
     note: string,
   ) => {
-    setCases((prev) =>
-      prev.map((item) =>
-        item.id === caseId
-          ? {
-              ...item,
-              status: nextStatus,
-              reason: note ? `${item.reason} — Catatan: ${note}` : item.reason,
-            }
-          : item,
-      ),
-    );
-    toast(nextStatus === 'approved' ? 'Banding disetujui' : 'Banding ditolak', {
-      description:
-        nextStatus === 'approved'
-          ? 'Ban dicabut dan dicatat ke log audit.'
-          : 'Ban tetap aktif dengan masa tunggu 24 jam.',
-    });
-    if (isMobile) {
-      setDrawerOpen(false);
+    try {
+      const res = await api.api.ledger.appeals[':id'].decide.$post({
+        param: { id: caseId },
+        json: { decision: nextStatus, note: note || undefined },
+      });
+      if (!res.ok) {
+        throw new Error('Gagal menyimpan keputusan banding');
+      }
+
+      setCases((prev) =>
+        prev.map((item) =>
+          item.id === caseId
+            ? {
+                ...item,
+                status: nextStatus,
+                reason: note
+                  ? `${item.reason} — Catatan: ${note}`
+                  : item.reason,
+              }
+            : item,
+        ),
+      );
+
+      toast(
+        nextStatus === 'approved' ? 'Banding disetujui' : 'Banding ditolak',
+        {
+          description:
+            nextStatus === 'approved'
+              ? 'Ban dicabut di database.'
+              : 'Ban tetap aktif.',
+        },
+      );
+      if (isMobile) {
+        setDrawerOpen(false);
+      }
+    } catch (err) {
+      toast('Keputusan gagal disimpan', {
+        description:
+          err instanceof Error ? err.message : 'Terjadi kesalahan server.',
+      });
+    }
+  };
+
+  const handleRevokeBan = async (actionId: number) => {
+    try {
+      const res = await api.api.ledger.bans[':id'].revoke.$post({
+        param: { id: String(actionId) },
+        json: { reason: 'Revoked from web console' },
+      });
+      if (!res.ok) {
+        throw new Error('Gagal mencabut ban');
+      }
+
+      setBans((prev) =>
+        prev.map((row) =>
+          row.id === actionId ? { ...row, status: 'revoked' } : row,
+        ),
+      );
+      toast('Ban dicabut', {
+        description: 'Status ban diperbarui dan dicatat ke log audit.',
+      });
+    } catch (err) {
+      toast('Gagal mencabut ban', {
+        description:
+          err instanceof Error ? err.message : 'Terjadi kesalahan server.',
+      });
     }
   };
 
@@ -174,171 +293,220 @@ export function App() {
               <div className="flex items-center gap-3">
                 <SidebarTrigger />
                 <Separator orientation="vertical" className="h-5" />
-                <div>
-                  <h1 className="text-base font-semibold tracking-tight text-foreground">
-                    Antrean banding
-                  </h1>
-                </div>
+                <h1 className="text-base font-semibold tracking-tight text-foreground">
+                  {SECTION_TITLES[activeSection]}
+                </h1>
               </div>
 
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Ubah tema warna"
-                onClick={() => setDarkMode((prev) => !prev)}
-              >
-                {darkMode ? (
-                  <Sun className="size-4" />
-                ) : (
-                  <Moon className="size-4" />
-                )}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Muat ulang data"
+                  onClick={() => void loadSectionData(activeSection)}
+                  disabled={loadingSection}
+                >
+                  <RefreshCw
+                    className={`size-4 ${loadingSection ? 'animate-spin' : ''}`}
+                  />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Ubah tema warna"
+                  onClick={() => setDarkMode((prev) => !prev)}
+                >
+                  {darkMode ? (
+                    <Sun className="size-4" />
+                  ) : (
+                    <Moon className="size-4" />
+                  )}
+                </Button>
+              </div>
             </header>
 
             <div className="flex flex-1 flex-col gap-6 p-6">
-              {pendingCount > 0 && (
-                <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border bg-card px-5 py-3.5">
-                  <p className="text-sm text-foreground">
-                    <span className="font-semibold">
-                      {pendingCount} banding
-                    </span>{' '}
-                    menunggu peninjauan moderator.
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setStatusTab('pending')}
-                  >
-                    Tampilkan antrean aktif
-                  </Button>
-                </div>
-              )}
-
-              <div className="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-12">
-                <section className="flex flex-col rounded-lg border border-border bg-card lg:col-span-7">
-                  <div className="flex flex-col gap-4 border-b border-border p-5">
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-                      <Tabs
-                        value={statusTab}
-                        onValueChange={(val) =>
-                          setStatusTab(val as 'all' | 'pending' | 'history')
-                        }
+              {activeSection === 'appeals' ? (
+                <>
+                  {pendingCount > 0 && (
+                    <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border bg-card px-5 py-3.5">
+                      <p className="text-sm text-foreground">
+                        <span className="font-semibold">
+                          {pendingCount} banding
+                        </span>{' '}
+                        menunggu peninjauan moderator.
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setStatusTab('pending')}
                       >
-                        <TabsList>
-                          <TabsTrigger value="all">Semua</TabsTrigger>
-                          <TabsTrigger value="pending">Aktif</TabsTrigger>
-                          <TabsTrigger value="history">Riwayat</TabsTrigger>
-                        </TabsList>
-                      </Tabs>
-
-                      <Select
-                        value={tierFilter}
-                        onValueChange={(val) => setTierFilter(val ?? 'all')}
-                      >
-                        <SelectTrigger className="w-40">
-                          <SelectValue placeholder="Semua tingkat" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Semua tingkat</SelectItem>
-                          <SelectItem value="Ringan">Ringan</SelectItem>
-                          <SelectItem value="Sedang">Sedang</SelectItem>
-                          <SelectItem value="Berat">Berat</SelectItem>
-                          <SelectItem value="Sangat berat">
-                            Sangat berat
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
+                        Tampilkan antrean aktif
+                      </Button>
                     </div>
+                  )}
 
-                    <div className="relative">
-                      <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Cari nama, username, ID pengguna, atau kode ban..."
-                        className="pl-9"
-                      />
-                    </div>
-                  </div>
+                  <div className="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-12">
+                    <section className="flex flex-col rounded-lg border border-border bg-card lg:col-span-7">
+                      <div className="flex flex-col gap-4 border-b border-border p-5">
+                        <div className="flex flex-wrap items-center justify-between gap-4">
+                          <Tabs
+                            value={statusTab}
+                            onValueChange={(val) =>
+                              setStatusTab(val as 'all' | 'pending' | 'history')
+                            }
+                          >
+                            <TabsList>
+                              <TabsTrigger value="all">Semua</TabsTrigger>
+                              <TabsTrigger value="pending">Aktif</TabsTrigger>
+                              <TabsTrigger value="history">Riwayat</TabsTrigger>
+                            </TabsList>
+                          </Tabs>
 
-                  <div className="flex-1 overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="hover:bg-transparent">
-                          <TableHead className="px-5 py-3.5">Anggota</TableHead>
-                          <TableHead className="px-4 py-3.5">Tingkat</TableHead>
-                          <TableHead className="px-4 py-3.5">Status</TableHead>
-                          <TableHead className="px-5 py-3.5 text-right">
-                            Waktu
-                          </TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredCases.length === 0 ? (
-                          <TableRow>
-                            <TableCell
-                              colSpan={4}
-                              className="h-32 px-5 text-center text-sm text-muted-foreground"
-                            >
-                              Tidak ada kasus yang cocok dengan filter saat ini.
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          filteredCases.map((item) => {
-                            const isSelected = item.id === selectedId;
-                            return (
-                              <TableRow
-                                key={item.id}
-                                data-state={isSelected ? 'selected' : undefined}
-                                onClick={() => handleSelectRow(item)}
-                                className="cursor-pointer"
-                              >
-                                <TableCell className="px-5 py-4">
-                                  <div className="space-y-1">
-                                    <p className="font-medium text-foreground">
-                                      {item.displayName}
-                                    </p>
-                                    <p className="font-mono text-xs text-muted-foreground">
-                                      {item.externalRef} · {item.username}
-                                    </p>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="px-4 py-4">
-                                  <Badge
-                                    variant={
-                                      item.ruleTier === 'Sangat berat' ||
-                                      item.ruleTier === 'Berat'
-                                        ? 'destructive'
-                                        : 'secondary'
-                                    }
-                                  >
-                                    {item.ruleTier}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="px-4 py-4">
-                                  <Badge variant="outline">
-                                    {STATUS_LABELS[item.status]}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="px-5 py-4 text-right text-xs text-muted-foreground">
-                                  {item.submittedAt}
+                          <Select
+                            value={tierFilter}
+                            onValueChange={(val) => setTierFilter(val ?? 'all')}
+                          >
+                            <SelectTrigger className="w-40">
+                              <SelectValue placeholder="Semua tingkat" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">Semua tingkat</SelectItem>
+                              <SelectItem value="Ringan">Ringan</SelectItem>
+                              <SelectItem value="Sedang">Sedang</SelectItem>
+                              <SelectItem value="Berat">Berat</SelectItem>
+                              <SelectItem value="Sangat berat">
+                                Sangat berat
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="relative">
+                          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                          <Input
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Cari nama, username, ID pengguna, atau kode ban..."
+                            className="pl-9"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex-1 overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="hover:bg-transparent">
+                              <TableHead className="px-5 py-3.5">
+                                Anggota
+                              </TableHead>
+                              <TableHead className="px-4 py-3.5">
+                                Tingkat
+                              </TableHead>
+                              <TableHead className="px-4 py-3.5">
+                                Status
+                              </TableHead>
+                              <TableHead className="px-5 py-3.5 text-right">
+                                Waktu
+                              </TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredCases.length === 0 ? (
+                              <TableRow>
+                                <TableCell
+                                  colSpan={4}
+                                  className="h-36 px-5 text-center text-sm text-muted-foreground"
+                                >
+                                  {loadingSection
+                                    ? 'Memuat data banding dari Supabase...'
+                                    : 'Belum ada banding yang cocok dengan filter saat ini.'}
                                 </TableCell>
                               </TableRow>
-                            );
-                          })
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </section>
+                            ) : (
+                              filteredCases.map((item) => {
+                                const isSelected = item.id === selectedId;
+                                return (
+                                  <TableRow
+                                    key={item.id}
+                                    data-state={
+                                      isSelected ? 'selected' : undefined
+                                    }
+                                    onClick={() => handleSelectRow(item)}
+                                    className="cursor-pointer"
+                                  >
+                                    <TableCell className="px-5 py-4">
+                                      <div className="space-y-1">
+                                        <p className="font-medium text-foreground">
+                                          {item.displayName}
+                                        </p>
+                                        <p className="font-mono text-xs text-muted-foreground">
+                                          {item.externalRef} · {item.username}
+                                        </p>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="px-4 py-4">
+                                      <Badge
+                                        variant={
+                                          item.ruleTier === 'Sangat berat' ||
+                                          item.ruleTier === 'Berat'
+                                            ? 'destructive'
+                                            : 'secondary'
+                                        }
+                                      >
+                                        {item.ruleTier}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="px-4 py-4">
+                                      <Badge variant="outline">
+                                        {STATUS_LABELS[item.status]}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="px-5 py-4 text-right text-xs text-muted-foreground">
+                                      {item.submittedAt}
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </section>
 
-                <aside className="hidden rounded-lg border border-border bg-card lg:col-span-5 lg:block">
-                  <CaseDossier
-                    selectedCase={selectedCase}
-                    onDecide={handleDecide}
-                  />
-                </aside>
-              </div>
+                    <aside className="hidden rounded-lg border border-border bg-card lg:col-span-5 lg:block">
+                      <CaseDossier
+                        selectedCase={selectedCase}
+                        onDecide={(id, decision, note) =>
+                          void handleDecide(id, decision, note)
+                        }
+                      />
+                    </aside>
+                  </div>
+                </>
+              ) : (
+                <section className="overflow-x-auto rounded-lg border border-border bg-card">
+                  {activeSection === 'bans' && (
+                    <BansTable
+                      items={bans}
+                      loading={loadingSection}
+                      onRevokeBan={(id) => void handleRevokeBan(id)}
+                    />
+                  )}
+                  {activeSection === 'warns' && (
+                    <WarnsTable items={warns} loading={loadingSection} />
+                  )}
+                  {activeSection === 'groups' && (
+                    <GroupsTable items={groups} loading={loadingSection} />
+                  )}
+                  {activeSection === 'rules' && (
+                    <RulesTable items={rules} loading={loadingSection} />
+                  )}
+                  {activeSection === 'staff' && (
+                    <StaffTable items={staff} loading={loadingSection} />
+                  )}
+                </section>
+              )}
             </div>
           </SidebarInset>
         </div>
@@ -351,7 +519,9 @@ export function App() {
             <div className="overflow-y-auto">
               <CaseDossier
                 selectedCase={selectedCase}
-                onDecide={handleDecide}
+                onDecide={(id, decision, note) =>
+                  void handleDecide(id, decision, note)
+                }
               />
             </div>
           </DrawerContent>

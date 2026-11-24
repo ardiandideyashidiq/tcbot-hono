@@ -72,4 +72,30 @@ describe('tcbot-hono foundation routes', () => {
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ ok: false, error: 'Not Found' });
   });
+
+  it('GET /api/ledger/* endpoints return unconfigured empty lists when supabase is unset', async () => {
+    const client = testClient(app, baseEnv);
+
+    const [appealsRes, bansRes, warnsRes, groupsRes, rulesRes, staffRes] =
+      await Promise.all([
+        client.api.ledger.appeals.$get(),
+        client.api.ledger.bans.$get(),
+        client.api.ledger.warns.$get(),
+        client.api.ledger.groups.$get(),
+        client.api.ledger.rules.$get(),
+        client.api.ledger.staff.$get(),
+      ]);
+
+    for (const res of [
+      appealsRes,
+      bansRes,
+      warnsRes,
+      groupsRes,
+      rulesRes,
+      staffRes,
+    ]) {
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ configured: false, items: [] });
+    }
+  });
 });
