@@ -130,7 +130,7 @@ export function PublicShell({
         {/* Mobile compact sub-navigation bar */}
         <nav
           aria-label="Navigasi publik mobile"
-          className="flex items-center gap-1 overflow-x-auto border-t border-[var(--rule-line)] px-4 py-1.5 md:hidden"
+          className="grid grid-cols-3 gap-1 border-t border-[var(--rule-line)] px-4 py-1.5 md:hidden"
         >
           {NAV_LINKS.map((link) => {
             const Icon = link.icon;
@@ -140,14 +140,14 @@ export function PublicShell({
                 key={link.route}
                 type="button"
                 onClick={() => onNavigate(link.route)}
-                className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 border px-3 py-1 text-xs font-medium transition-colors ${
+                className={`inline-flex min-h-10 items-center justify-center gap-1.5 border px-2 py-1 text-xs font-medium transition-colors ${
                   active
                     ? 'border-[var(--ink)] bg-[var(--ink)] text-[var(--paper)]'
                     : 'border-[var(--rule-line)] bg-background/50 text-muted-foreground hover:text-[var(--ink)]'
                 }`}
               >
-                <Icon className="size-3.5" />
-                {link.label}
+                <Icon className="size-3.5 shrink-0" />
+                <span className="truncate">{link.label}</span>
               </button>
             );
           })}

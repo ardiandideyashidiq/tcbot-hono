@@ -213,7 +213,7 @@ export function PublicRulesPage({
         <div
           role="tablist"
           aria-label="Filter sifat aturan"
-          className="flex items-end gap-1 overflow-x-auto"
+          className="grid w-full grid-cols-3 gap-1 sm:flex sm:w-auto sm:items-end"
         >
           <SectionTab
             active={ruleFilter === 'all'}
@@ -293,25 +293,31 @@ export function PublicRulesPage({
           ref={scrollContainerRef}
           className="docket-scroll ledger-rule relative min-h-0 flex-1 overflow-y-auto pr-1"
         >
-          {/* Mobile sticky paper-tab category jump */}
+          {/* Mobile sticky category selector (zero horizontal scroll) */}
           {groupedRules.length > 0 && (
-            <div className="sticky top-0 z-20 mb-3 flex gap-1.5 overflow-x-auto border-b border-[var(--rule-line)] bg-[var(--paper)]/95 py-1.5 lg:hidden">
-              {groupedRules.map(([category, items], idx) => {
-                const isActive = activeCategory === category;
-                return (
-                  <SectionTab
-                    key={category}
-                    active={isActive}
-                    onClick={() => {
-                      setActiveCategory(category);
-                      scrollToCategory(category);
-                    }}
-                    badge={items.length}
-                  >
-                    {String(idx + 1).padStart(2, '0')} · {category}
-                  </SectionTab>
-                );
-              })}
+            <div className="sticky top-0 z-20 mb-3 border-b border-[var(--rule-line)] bg-[var(--paper)]/95 py-2 lg:hidden">
+              <label className="flex items-center justify-between gap-2 font-mono text-[11px]">
+                <span className="shrink-0 text-muted-foreground uppercase">
+                  Kategori
+                </span>
+                <select
+                  aria-label="Pilih kategori aturan"
+                  value={activeCategory ?? groupedRules[0]?.[0] ?? ''}
+                  onChange={(e) => {
+                    const cat = e.target.value;
+                    setActiveCategory(cat);
+                    scrollToCategory(cat);
+                  }}
+                  className="min-h-10 min-w-0 flex-1 border border-[var(--rule-line)] bg-card px-2.5 py-1 text-xs font-medium text-[var(--ink)] focus:border-[var(--ink)] focus:outline-none"
+                >
+                  {groupedRules.map(([category, items], idx) => (
+                    <option key={category} value={category}>
+                      {String(idx + 1).padStart(2, '0')} · {category} (
+                      {items.length})
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
           )}
 
