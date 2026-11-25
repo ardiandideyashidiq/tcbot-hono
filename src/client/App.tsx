@@ -1,5 +1,12 @@
 import { Moon, RefreshCw, Search, Sun } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  type MouseEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { flushSync } from 'react-dom';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -277,6 +284,53 @@ export function App() {
     }
   };
 
+  const handleToggleTheme = (event: MouseEvent<HTMLButtonElement>) => {
+    const nextDark = !darkMode;
+    const reducedMotion = window.matchMedia(
+      '(prefers-reduced-motion: reduce)',
+    ).matches;
+
+    if (reducedMotion || typeof document.startViewTransition !== 'function') {
+      document.documentElement.classList.add('theme-transition');
+      setDarkMode(nextDark);
+      window.setTimeout(() => {
+        document.documentElement.classList.remove('theme-transition');
+      }, 240);
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX || rect.left + rect.width / 2;
+    const y = event.clientY || rect.top + rect.height / 2;
+    const endRadius = Math.hypot(
+      Math.max(x, window.innerWidth - x),
+      Math.max(y, window.innerHeight - y),
+    );
+
+    const transition = document.startViewTransition(() => {
+      flushSync(() => {
+        setDarkMode(nextDark);
+      });
+      document.documentElement.classList.toggle('dark', nextDark);
+    });
+
+    void transition.ready.then(() => {
+      document.documentElement.animate(
+        {
+          clipPath: [
+            `circle(0px at ${x}px ${y}px)`,
+            `circle(${endRadius}px at ${x}px ${y}px)`,
+          ],
+        },
+        {
+          duration: 420,
+          easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+          pseudoElement: '::view-transition-new(root)',
+        },
+      );
+    });
+  };
+
   return (
     <TooltipProvider>
       <SidebarProvider>
@@ -314,7 +368,7 @@ export function App() {
                   variant="ghost"
                   size="icon"
                   aria-label="Ubah tema warna"
-                  onClick={() => setDarkMode((prev) => !prev)}
+                  onClick={handleToggleTheme}
                 >
                   {darkMode ? (
                     <Sun className="size-4" />
