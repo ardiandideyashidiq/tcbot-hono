@@ -16,6 +16,7 @@ import {
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import type { LedgerSection } from '../types';
 
@@ -43,6 +44,15 @@ export function AppSidebar({
   onSelectSection,
   pendingCount,
 }: AppSidebarProps) {
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  const handleSelect = (section: LedgerSection) => {
+    onSelectSection(section);
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
+
   return (
     <Sidebar className="border-r border-border">
       <SidebarContent className="px-3 py-4">
@@ -59,7 +69,7 @@ export function AppSidebar({
                   <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton
                       isActive={isActive}
-                      onClick={() => onSelectSection(item.id)}
+                      onClick={() => handleSelect(item.id)}
                       className="h-10 px-3"
                     >
                       <Icon className="size-4 shrink-0" />
