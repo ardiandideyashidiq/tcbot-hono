@@ -57,36 +57,6 @@ function toRange(page: number, limit: number): [number, number] {
   return [from, to];
 }
 
-async function fetchUsersMap(supabase: TypedSupabaseClient, userIds: number[]) {
-  const uniqueIds = [...new Set(userIds.filter((id) => Number.isFinite(id)))];
-  if (uniqueIds.length === 0) {
-    return new Map<
-      number,
-      {
-        username: string | null;
-        first_name: string | null;
-        last_name: string | null;
-      }
-    >();
-  }
-
-  const { data } = await supabase
-    .from('telegram_users')
-    .select('user_id, username, first_name, last_name')
-    .in('user_id', uniqueIds);
-
-  return new Map(
-    (data ?? []).map((u) => [
-      u.user_id,
-      {
-        username: u.username,
-        first_name: u.first_name,
-        last_name: u.last_name,
-      },
-    ]),
-  );
-}
-
 async function fetchChatsMap(supabase: TypedSupabaseClient, chatIds: number[]) {
   const uniqueIds = [...new Set(chatIds.filter((id) => Number.isFinite(id)))];
   if (uniqueIds.length === 0) {
@@ -142,7 +112,9 @@ const ledgerApp = new Hono<AppEnv>()
     let query = supabase
       .from('moderation_appeals')
       .select(
-        'id, action_id, appellant_user_id, appeal_text, status, submitted_at, resolved_at, reviewed_by_user_id, decision_note',
+        `id, action_id, appellant_user_id, appeal_text, status, submitted_at, resolved_at, reviewed_by_user_id, decision_note,
+         telegram_users!moderation_appeals_appellant_user_id_fkey(username, first_name, last_name),
+         moderation_actions!moderation_appeals_action_id_fkey(id, external_ref, chat_id, origin_chat_id, reason, telegram_chats!moderation_actions_chat_id_fkey(title, chat_type))`,
         { count: 'estimated' },
       )
       .order('submitted_at', { ascending: false });
@@ -159,31 +131,28 @@ const ledgerApp = new Hono<AppEnv>()
       throw new HTTPException(500, { message: error.message });
     }
 
-    const actionIds = (appeals ?? []).map((a) => a.action_id);
-    const [{ data: actions }, userMap] = await Promise.all([
-      actionIds.length > 0
-        ? supabase
-            .from('moderation_actions')
-            .select('id, external_ref, chat_id, origin_chat_id, reason')
-            .in('id', actionIds)
-        : Promise.resolve({ data: [] }),
-      fetchUsersMap(
-        supabase,
-        (appeals ?? []).map((a) => a.appellant_user_id),
-      ),
-    ]);
+    const originChatIds = (appeals ?? [])
+      .map((a) => {
+        const act = a.moderation_actions;
+        return act?.origin_chat_id && act.origin_chat_id !== act.chat_id
+          ? act.origin_chat_id
+          : null;
+      })
+      .filter((id): id is number => id !== null);
 
-    const actionMap = new Map((actions ?? []).map((act) => [act.id, act]));
-    const chatMap = await fetchChatsMap(
-      supabase,
-      (actions ?? []).map((a) => a.origin_chat_id ?? a.chat_id),
-    );
+    const originChatMap =
+      originChatIds.length > 0
+        ? await fetchChatsMap(supabase, originChatIds)
+        : null;
 
     const items = (appeals ?? []).map((appeal) => {
-      const action = actionMap.get(appeal.action_id);
-      const user = userMap.get(appeal.appellant_user_id);
+      const action = appeal.moderation_actions;
+      const user = appeal.telegram_users ?? undefined;
       const chatId = action?.origin_chat_id ?? action?.chat_id ?? 0;
-      const chat = chatMap.get(chatId);
+      const chat =
+        (action?.origin_chat_id && action.origin_chat_id !== action.chat_id
+          ? originChatMap?.get(action.origin_chat_id)
+          : action?.telegram_chats) ?? undefined;
 
       const mappedStatus =
         appeal.status === 'accepted'
@@ -297,7 +266,9 @@ const ledgerApp = new Hono<AppEnv>()
     } = await supabase
       .from('moderation_actions')
       .select(
-        'id, external_ref, target_user_id, actor_user_id, chat_id, origin_chat_id, reason, status, created_at, expires_at',
+        `id, external_ref, target_user_id, actor_user_id, chat_id, origin_chat_id, reason, status, created_at, expires_at,
+         telegram_users!moderation_actions_target_user_id_fkey(username, first_name, last_name),
+         telegram_chats!moderation_actions_chat_id_fkey(title, chat_type)`,
         { count: 'estimated' },
       )
       .eq('action_type', 'ban')
@@ -308,21 +279,26 @@ const ledgerApp = new Hono<AppEnv>()
       throw new HTTPException(500, { message: error.message });
     }
 
-    const [userMap, chatMap] = await Promise.all([
-      fetchUsersMap(
-        supabase,
-        (bans ?? []).map((b) => b.target_user_id),
-      ),
-      fetchChatsMap(
-        supabase,
-        (bans ?? []).map((b) => b.origin_chat_id ?? b.chat_id),
-      ),
-    ]);
+    const originChatIds = (bans ?? [])
+      .map((b) =>
+        b.origin_chat_id && b.origin_chat_id !== b.chat_id
+          ? b.origin_chat_id
+          : null,
+      )
+      .filter((id): id is number => id !== null);
+
+    const originChatMap =
+      originChatIds.length > 0
+        ? await fetchChatsMap(supabase, originChatIds)
+        : null;
 
     const items = (bans ?? []).map((ban) => {
-      const user = userMap.get(ban.target_user_id);
+      const user = ban.telegram_users ?? undefined;
       const chatId = ban.origin_chat_id ?? ban.chat_id;
-      const chat = chatMap.get(chatId);
+      const chat =
+        (ban.origin_chat_id && ban.origin_chat_id !== ban.chat_id
+          ? originChatMap?.get(ban.origin_chat_id)
+          : ban.telegram_chats) ?? undefined;
 
       return {
         id: ban.id,
@@ -416,7 +392,9 @@ const ledgerApp = new Hono<AppEnv>()
     } = await supabase
       .from('moderation_actions')
       .select(
-        'id, external_ref, target_user_id, chat_id, reason, status, created_at, expires_at',
+        `id, external_ref, target_user_id, chat_id, reason, status, created_at, expires_at,
+         telegram_users!moderation_actions_target_user_id_fkey(username, first_name, last_name),
+         telegram_chats!moderation_actions_chat_id_fkey(title, chat_type)`,
         { count: 'estimated' },
       )
       .eq('action_type', 'warn')
@@ -427,20 +405,9 @@ const ledgerApp = new Hono<AppEnv>()
       throw new HTTPException(500, { message: error.message });
     }
 
-    const [userMap, chatMap] = await Promise.all([
-      fetchUsersMap(
-        supabase,
-        (warns ?? []).map((w) => w.target_user_id),
-      ),
-      fetchChatsMap(
-        supabase,
-        (warns ?? []).map((w) => w.chat_id),
-      ),
-    ]);
-
     const items = (warns ?? []).map((warn) => {
-      const user = userMap.get(warn.target_user_id);
-      const chat = chatMap.get(warn.chat_id);
+      const user = warn.telegram_users ?? undefined;
+      const chat = warn.telegram_chats ?? undefined;
       return {
         id: warn.id,
         externalRef: warn.external_ref,
@@ -481,9 +448,12 @@ const ledgerApp = new Hono<AppEnv>()
       error,
     } = await supabase
       .from('connected_chats')
-      .select('chat_id, added_by_user_id, added_at, is_active', {
-        count: 'estimated',
-      })
+      .select(
+        'chat_id, added_by_user_id, added_at, is_active, telegram_chats!connected_chats_chat_id_fkey(title, chat_type)',
+        {
+          count: 'estimated',
+        },
+      )
       .order('added_at', { ascending: false })
       .range(from, to);
 
@@ -491,13 +461,8 @@ const ledgerApp = new Hono<AppEnv>()
       throw new HTTPException(500, { message: error.message });
     }
 
-    const chatMap = await fetchChatsMap(
-      supabase,
-      (connected ?? []).map((g) => g.chat_id),
-    );
-
     const items = (connected ?? []).map((group) => {
-      const chat = chatMap.get(group.chat_id);
+      const chat = group.telegram_chats ?? undefined;
       return {
         chatId: group.chat_id,
         title: chat?.title ?? `Chat ${group.chat_id}`,
@@ -722,7 +687,9 @@ const ledgerApp = new Hono<AppEnv>()
     } = await supabase
       .from('role_assignments')
       .select(
-        'id, user_id, role_key, assigned_by_user_id, assigned_at, status',
+        `id, user_id, role_key, assigned_by_user_id, assigned_at, status,
+         telegram_users!role_assignments_user_id_fkey(username, first_name, last_name),
+         role_definitions!role_assignments_role_key_fkey(display_name, priority)`,
         {
           count: 'estimated',
         },
@@ -735,20 +702,10 @@ const ledgerApp = new Hono<AppEnv>()
       throw new HTTPException(500, { message: error.message });
     }
 
-    const { data: roles } = await supabase
-      .from('role_definitions')
-      .select('role_key, display_name, priority');
-
-    const roleMap = new Map((roles ?? []).map((r) => [r.role_key, r]));
-    const userMap = await fetchUsersMap(
-      supabase,
-      (assignments ?? []).map((a) => a.user_id),
-    );
-
     const items = (assignments ?? [])
       .map((assignment) => {
-        const user = userMap.get(assignment.user_id);
-        const roleDef = roleMap.get(assignment.role_key);
+        const user = assignment.telegram_users ?? undefined;
+        const roleDef = assignment.role_definitions ?? undefined;
         return {
           id: assignment.id,
           userId: assignment.user_id,
