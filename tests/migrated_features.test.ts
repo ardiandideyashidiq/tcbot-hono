@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test';
+import { afterEach, describe, expect, it } from 'bun:test';
 import type { Update } from 'grammy/types';
 import { createBot } from '../src/bot';
 import { parsePrefixedCommand } from '../src/bot/prefixes';
@@ -7,6 +7,8 @@ import {
   getBotSession,
   setBotSession,
 } from '../src/bot/session';
+import { app } from '../src/index';
+import { getSessionSecret, signAdminSession } from '../src/lib/auth';
 import {
   releaseStaleAppeals,
   retryPendingEnforcementTargets,
@@ -278,5 +280,405 @@ describe('Migrated Python -> Hono features & improved logic', () => {
       failed: 0,
     });
     expect(await releaseStaleAppeals(testEnv)).toEqual({ unlocked: 0 });
+  });
+});
+
+const configuredLedgerEnv = {
+  ...testEnv,
+  SUPABASE_URL: 'https://mock.supabase.co',
+  SUPABASE_SECRET_KEY: 'mock-service-role-key',
+  ADMIN_USERNAME: 'admin',
+  ADMIN_PASSWORD: 'test_admin_password',
+  ADMIN_SESSION_SECRET: 'test_session_secret_key',
+} as unknown as CloudflareBindings;
+
+const unconfiguredLedgerEnv = {
+  ...testEnv,
+  ADMIN_USERNAME: 'admin',
+  ADMIN_PASSWORD: 'test_admin_password',
+  ADMIN_SESSION_SECRET: 'test_session_secret_key',
+} as unknown as CloudflareBindings;
+
+async function adminCookieHeader(env: CloudflareBindings) {
+  const secret = getSessionSecret(env);
+  if (!secret) throw new Error('Expected test session secret');
+  const token = await signAdminSession('admin', secret);
+  return { Cookie: `tcbot_admin_session=${encodeURIComponent(token)}` };
+}
+
+const originalFetch = globalThis.fetch;
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
+
+describe('Ledger endpoints for erasures and enforcement runs', () => {
+  it('rejects unauthenticated requests with 401', async () => {
+    const res1 = await app.request(
+      '/api/ledger/erasures',
+      {},
+      configuredLedgerEnv,
+    );
+    expect(res1.status).toBe(401);
+
+    const res2 = await app.request(
+      '/api/ledger/enforcement-runs',
+      {},
+      configuredLedgerEnv,
+    );
+    expect(res2.status).toBe(401);
+
+    const res3 = await app.request(
+      'http://localhost/api/ledger/enforcement-runs/retry',
+      {
+        method: 'POST',
+        headers: { Origin: 'http://localhost' },
+      },
+      configuredLedgerEnv,
+    );
+    expect(res3.status).toBe(401);
+  });
+
+  it('handles unconfigured Supabase gracefully on erasures and enforcement-runs', async () => {
+    const headers = await adminCookieHeader(unconfiguredLedgerEnv);
+
+    const erasuresRes = await app.request(
+      '/api/ledger/erasures?page=1&limit=10',
+      { headers },
+      unconfiguredLedgerEnv,
+    );
+    expect(erasuresRes.status).toBe(200);
+    expect(await erasuresRes.json()).toEqual({
+      configured: false,
+      items: [],
+      pagination: { page: 1, limit: 10, total: 0, totalPages: 1 },
+    });
+
+    const runsRes = await app.request(
+      '/api/ledger/enforcement-runs?page=2&limit=5',
+      { headers },
+      unconfiguredLedgerEnv,
+    );
+    expect(runsRes.status).toBe(200);
+    expect(await runsRes.json()).toEqual({
+      configured: false,
+      items: [],
+      pagination: { page: 2, limit: 5, total: 0, totalPages: 1 },
+    });
+
+    const retryRes = await app.request(
+      'http://localhost/api/ledger/enforcement-runs/retry',
+      {
+        method: 'POST',
+        headers: { ...headers, Origin: 'http://localhost' },
+      },
+      unconfiguredLedgerEnv,
+    );
+    expect(retryRes.status).toBe(503);
+  });
+
+  it('validates pagination query, CSRF origin, and retry payload', async () => {
+    const headers = await adminCookieHeader(configuredLedgerEnv);
+
+    const badLimitRes = await app.request(
+      '/api/ledger/erasures?limit=99',
+      { headers },
+      configuredLedgerEnv,
+    );
+    expect(badLimitRes.status).toBe(400);
+
+    const badPageRes = await app.request(
+      '/api/ledger/enforcement-runs?page=0',
+      { headers },
+      configuredLedgerEnv,
+    );
+    expect(badPageRes.status).toBe(400);
+
+    const csrfRes = await app.request(
+      'http://localhost/api/ledger/enforcement-runs/retry',
+      {
+        method: 'POST',
+        headers: { ...headers, Origin: 'https://evil.example' },
+      },
+      configuredLedgerEnv,
+    );
+    expect(csrfRes.status).toBe(403);
+
+    const badRetryBodyRes = await app.request(
+      'http://localhost/api/ledger/enforcement-runs/retry',
+      {
+        method: 'POST',
+        headers: {
+          ...headers,
+          Origin: 'http://localhost',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ limit: 0 }),
+      },
+      configuredLedgerEnv,
+    );
+    expect(badRetryBodyRes.status).toBe(400);
+  });
+
+  it('lists erasures and enforcement runs with pagination and cursor, and retries pending targets', async () => {
+    const erasures = [
+      {
+        id: 12,
+        user_id: 5002,
+        status: 'completed',
+        source: 'telegram_command',
+        reason: 'User requested erasure',
+        notes: 'Anonymized',
+        requested_at: '2026-11-24T10:00:00.000Z',
+        processed_at: '2026-11-24T10:01:00.000Z',
+        processed_by_user_id: 1001,
+        affected: { messages: 3 },
+      },
+      {
+        id: 11,
+        user_id: 5001,
+        status: 'pending',
+        source: 'web_console',
+        reason: null,
+        notes: null,
+        requested_at: '2026-11-23T09:00:00.000Z',
+        processed_at: null,
+        processed_by_user_id: null,
+        affected: {},
+      },
+    ];
+
+    const runs = [
+      {
+        id: 77,
+        action_id: 301,
+        operation: 'ban',
+        status: 'partial_failure',
+        target_count: 3,
+        succeeded_count: 2,
+        failed_count: 1,
+        skipped_count: 0,
+        requested_by_user_id: 1001,
+        started_at: '2026-11-24T08:00:00.000Z',
+        finished_at: '2026-11-24T08:00:05.000Z',
+        created_at: '2026-11-24T08:00:00.000Z',
+      },
+    ];
+
+    const targets = [
+      {
+        id: 901,
+        run_id: 77,
+        chat_id: -100777888,
+        attempt_count: 1,
+        status: 'failed',
+        next_retry_at: null,
+      },
+    ];
+
+    const updatedTargets: Array<Record<string, unknown>> = [];
+    const insertedAttempts: Array<Record<string, unknown>> = [];
+    const telegramCalls: string[] = [];
+
+    globalThis.fetch = (async (
+      input: RequestInfo | URL,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      const rawUrl =
+        typeof input === 'string'
+          ? input
+          : input instanceof Request
+            ? input.url
+            : input.toString();
+      const url = new URL(rawUrl);
+
+      if (url.origin === 'https://api.telegram.org') {
+        telegramCalls.push(url.pathname);
+        return Response.json({ ok: true, result: true });
+      }
+
+      if (url.origin !== 'https://mock.supabase.co') {
+        throw new Error(`Unexpected external fetch to ${url.toString()}`);
+      }
+
+      const table = url.pathname.replace('/rest/v1/', '');
+      const method = (init?.method ?? 'GET').toUpperCase();
+      const body =
+        typeof init?.body === 'string'
+          ? (JSON.parse(init.body) as Record<string, unknown>)
+          : null;
+
+      if (table === 'telegram_user_erasures' && method === 'GET') {
+        const ltRequested = url.searchParams.get('requested_at');
+        let rows = erasures;
+        if (ltRequested?.startsWith('lt.')) {
+          const cursorVal = ltRequested.slice(3);
+          rows = rows.filter((r) => r.requested_at < cursorVal);
+        }
+        const limitParam = Number(url.searchParams.get('limit') ?? rows.length);
+        const sliced = rows.slice(0, limitParam);
+        return Response.json(sliced, {
+          headers: {
+            'Content-Range': `0-${Math.max(0, sliced.length - 1)}/${rows.length}`,
+          },
+        });
+      }
+
+      if (table === 'moderation_enforcement_runs' && method === 'GET') {
+        return Response.json(runs, {
+          headers: {
+            'Content-Range': `0-${Math.max(0, runs.length - 1)}/${runs.length}`,
+          },
+        });
+      }
+
+      if (table === 'moderation_enforcement_targets') {
+        if (method === 'GET') {
+          return Response.json(targets);
+        }
+        if (method === 'PATCH' && body) {
+          updatedTargets.push(body);
+          return Response.json([body]);
+        }
+      }
+
+      if (table === 'moderation_actions' && method === 'GET') {
+        return Response.json([
+          { id: 301, target_user_id: 888999, expires_at: null },
+        ]);
+      }
+
+      if (
+        table === 'moderation_enforcement_attempts' &&
+        method === 'POST' &&
+        body
+      ) {
+        insertedAttempts.push(body);
+        return Response.json([body], { status: 201 });
+      }
+
+      return Response.json([]);
+    }) as typeof fetch;
+
+    const headers = await adminCookieHeader(configuredLedgerEnv);
+
+    const erasuresPage1 = await app.request(
+      '/api/ledger/erasures?page=1&limit=1',
+      { headers },
+      configuredLedgerEnv,
+    );
+    expect(erasuresPage1.status).toBe(200);
+    const erasuresJson = (await erasuresPage1.json()) as {
+      configured: boolean;
+      items: Array<{ id: number; userId: number; status: string }>;
+      pagination: { nextCursor?: string; total: number; totalPages: number };
+    };
+    expect(erasuresJson.configured).toBe(true);
+    expect(erasuresJson.items).toHaveLength(1);
+    expect(erasuresJson.items[0]?.id).toBe(12);
+    expect(erasuresJson.items[0]?.userId).toBe(5002);
+    expect(erasuresJson.pagination.nextCursor).toBe('2026-11-24T10:00:00.000Z');
+    expect(erasuresJson.pagination.total).toBe(2);
+    expect(erasuresJson.pagination.totalPages).toBe(2);
+
+    const erasuresPage2 = await app.request(
+      `/api/ledger/erasures?page=2&limit=1&cursor=${encodeURIComponent(erasuresJson.pagination.nextCursor ?? '')}`,
+      { headers },
+      configuredLedgerEnv,
+    );
+    expect(erasuresPage2.status).toBe(200);
+    const erasuresPage2Json = (await erasuresPage2.json()) as {
+      items: Array<{ id: number; status: string }>;
+    };
+    expect(erasuresPage2Json.items.map((item) => item.id)).toEqual([11]);
+
+    const runsRes = await app.request(
+      '/api/ledger/enforcement-runs?page=1&limit=10',
+      { headers },
+      configuredLedgerEnv,
+    );
+    expect(runsRes.status).toBe(200);
+    const runsJson = (await runsRes.json()) as {
+      configured: boolean;
+      items: Array<{
+        id: number;
+        actionId: number;
+        operation: string;
+        failedCount: number;
+      }>;
+    };
+    expect(runsJson.configured).toBe(true);
+    expect(runsJson.items).toHaveLength(1);
+    expect(runsJson.items[0]).toMatchObject({
+      id: 77,
+      actionId: 301,
+      operation: 'ban',
+      failedCount: 1,
+    });
+
+    const retryRes = await app.request(
+      'http://localhost/api/ledger/enforcement-runs/retry',
+      {
+        method: 'POST',
+        headers: {
+          ...headers,
+          Origin: 'http://localhost',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ limit: 10 }),
+      },
+      configuredLedgerEnv,
+    );
+    expect(retryRes.status).toBe(200);
+    const retryJson = (await retryRes.json()) as {
+      ok: boolean;
+      retried: number;
+      succeeded: number;
+      failed: number;
+    };
+    expect(retryJson.ok).toBe(true);
+    expect(retryJson.retried).toBe(1);
+    expect(retryJson.succeeded + retryJson.failed).toBe(1);
+    expect(updatedTargets).toHaveLength(1);
+    expect(updatedTargets[0]?.attempt_count).toBe(2);
+    expect(insertedAttempts).toHaveLength(1);
+    expect(insertedAttempts[0]?.attempt_number).toBe(2);
+
+    const emptyBodyRetryRes = await app.request(
+      'http://localhost/api/ledger/enforcement-runs/retry',
+      {
+        method: 'POST',
+        headers: {
+          ...headers,
+          Origin: 'http://localhost',
+        },
+      },
+      configuredLedgerEnv,
+    );
+    expect(emptyBodyRetryRes.status).toBe(200);
+  });
+
+  it('propagates Supabase errors as 500 on erasures and enforcement-runs', async () => {
+    globalThis.fetch = (async (): Promise<Response> =>
+      Response.json(
+        { message: 'Database unavailable' },
+        { status: 500 },
+      )) as unknown as typeof fetch;
+
+    const headers = await adminCookieHeader(configuredLedgerEnv);
+
+    const erasuresErr = await app.request(
+      '/api/ledger/erasures',
+      { headers },
+      configuredLedgerEnv,
+    );
+    expect(erasuresErr.status).toBe(500);
+
+    const runsErr = await app.request(
+      '/api/ledger/enforcement-runs',
+      { headers },
+      configuredLedgerEnv,
+    );
+    expect(runsErr.status).toBe(500);
   });
 });

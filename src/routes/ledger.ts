@@ -5,7 +5,10 @@ import { z } from 'zod';
 import { isTrustedSameOriginMutation, verifyAdminRequest } from '../lib/auth';
 import { type AppEnv, hasSupabaseConfig } from '../lib/env';
 import { createSupabaseAdmin, type TypedSupabaseClient } from '../lib/supabase';
-import { syncUnbanToTelegram } from '../lib/telegram-sync';
+import {
+  retryPendingEnforcementTargets,
+  syncUnbanToTelegram,
+} from '../lib/telegram-sync';
 
 const DEFAULT_PAGE_SIZE = 15;
 
@@ -33,6 +36,10 @@ const createRuleSchema = z.object({
   body: z.string().min(5).max(3500),
   categoryTitle: z.string().min(2).max(100).default('Umum & Etika'),
   isMandatory: z.boolean().default(true),
+});
+
+const retryEnforcementSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(25),
 });
 
 function requireSupabase(env: CloudflareBindings): TypedSupabaseClient | null {
@@ -807,6 +814,154 @@ const ledgerApp = new Hono<AppEnv>()
       items,
       pagination: buildPagination(page, limit, count ?? items.length),
     });
+  })
+  .get('/erasures', zValidator('query', paginationQuerySchema), async (c) => {
+    const { page, limit, cursor } = c.req.valid('query');
+    const supabase = requireSupabase(c.env);
+    if (!supabase) {
+      return c.json({
+        configured: false,
+        items: [],
+        pagination: buildPagination(page, limit, 0),
+      });
+    }
+
+    const [from, to] = toRange(page, limit);
+    const erasuresQuery = supabase
+      .from('telegram_user_erasures')
+      .select(
+        'id, user_id, status, source, reason, notes, requested_at, processed_at, processed_by_user_id, affected',
+        { count: 'estimated' },
+      )
+      .order('requested_at', { ascending: false });
+
+    const {
+      data: erasures,
+      count,
+      error,
+    } = cursor
+      ? await erasuresQuery.lt('requested_at', cursor).limit(limit)
+      : await erasuresQuery.range(from, to);
+
+    if (error) {
+      throw new HTTPException(500, { message: error.message });
+    }
+
+    const items = (erasures ?? []).map((row) => ({
+      id: row.id,
+      userId: row.user_id,
+      status: row.status,
+      source: row.source,
+      reason: row.reason,
+      notes: row.notes,
+      requestedAt: row.requested_at,
+      processedAt: row.processed_at,
+      processedByUserId: row.processed_by_user_id,
+      affected: row.affected,
+    }));
+
+    const nextCursor =
+      items.length === limit
+        ? (erasures?.[erasures.length - 1]?.requested_at ?? null)
+        : null;
+
+    return c.json({
+      configured: true,
+      items,
+      pagination: buildPagination(
+        page,
+        limit,
+        count ?? items.length,
+        nextCursor,
+      ),
+    });
+  })
+  .get(
+    '/enforcement-runs',
+    zValidator('query', paginationQuerySchema),
+    async (c) => {
+      const { page, limit, cursor } = c.req.valid('query');
+      const supabase = requireSupabase(c.env);
+      if (!supabase) {
+        return c.json({
+          configured: false,
+          items: [],
+          pagination: buildPagination(page, limit, 0),
+        });
+      }
+
+      const [from, to] = toRange(page, limit);
+      const runsQuery = supabase
+        .from('moderation_enforcement_runs')
+        .select(
+          'id, action_id, operation, status, target_count, succeeded_count, failed_count, skipped_count, requested_by_user_id, started_at, finished_at, created_at',
+          { count: 'estimated' },
+        )
+        .order('created_at', { ascending: false });
+
+      const {
+        data: runs,
+        count,
+        error,
+      } = cursor
+        ? await runsQuery.lt('created_at', cursor).limit(limit)
+        : await runsQuery.range(from, to);
+
+      if (error) {
+        throw new HTTPException(500, { message: error.message });
+      }
+
+      const items = (runs ?? []).map((run) => ({
+        id: run.id,
+        actionId: run.action_id,
+        operation: run.operation,
+        status: run.status,
+        targetCount: run.target_count,
+        succeededCount: run.succeeded_count,
+        failedCount: run.failed_count,
+        skippedCount: run.skipped_count,
+        requestedByUserId: run.requested_by_user_id,
+        startedAt: run.started_at,
+        finishedAt: run.finished_at,
+        createdAt: run.created_at,
+      }));
+
+      const nextCursor =
+        items.length === limit
+          ? (runs?.[runs.length - 1]?.created_at ?? null)
+          : null;
+
+      return c.json({
+        configured: true,
+        items,
+        pagination: buildPagination(
+          page,
+          limit,
+          count ?? items.length,
+          nextCursor,
+        ),
+      });
+    },
+  )
+  .post('/enforcement-runs/retry', async (c) => {
+    const supabase = requireSupabase(c.env);
+    if (!supabase) {
+      throw new HTTPException(503, { message: 'Supabase is not configured' });
+    }
+
+    const rawBody = await c.req.json().catch(() => ({}));
+    const parsed = retryEnforcementSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      throw new HTTPException(400, {
+        message: 'Invalid retry request payload',
+      });
+    }
+
+    const result = await retryPendingEnforcementTargets(
+      c.env,
+      parsed.data.limit,
+    );
+    return c.json({ ok: true, ...result });
   });
 
 export default ledgerApp;
