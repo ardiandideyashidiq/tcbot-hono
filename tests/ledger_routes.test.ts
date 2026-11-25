@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test';
 import { app } from '../src/index';
+import { getSessionSecret, signAdminSession } from '../src/lib/auth';
 import { createSupabaseAdmin } from '../src/lib/supabase';
 
 const configuredEnv = {
@@ -27,7 +28,18 @@ const configuredEnv = {
   APPEALS: '',
   INFRA_CHAT_IDS: '',
   SENTRY_DSN: '',
+  ADMIN_USERNAME: 'admin',
+  ADMIN_PASSWORD: 'test_admin_password',
+  ADMIN_SESSION_SECRET: 'test_session_secret_key',
 } as unknown as CloudflareBindings;
+
+async function adminHeaders() {
+  const token = await signAdminSession(
+    'admin',
+    getSessionSecret(configuredEnv),
+  );
+  return { Cookie: `tcbot_admin_session=${encodeURIComponent(token)}` };
+}
 
 const originalFetch = globalThis.fetch;
 
@@ -251,10 +263,11 @@ function installSupabaseStub() {
 describe('Ledger API routes with Supabase stub', () => {
   it('GET /api/ledger/groups and POST /groups/:chatId/toggle mutate group state and validate input', async () => {
     const db = installSupabaseStub();
+    const headers = await adminHeaders();
 
     const listRes = await app.request(
       '/api/ledger/groups?page=1&limit=10',
-      {},
+      { headers },
       configuredEnv,
     );
     expect(listRes.status).toBe(200);
@@ -268,21 +281,21 @@ describe('Ledger API routes with Supabase stub', () => {
 
     const invalidRes = await app.request(
       '/api/ledger/groups/not-a-number/toggle',
-      { method: 'POST' },
+      { method: 'POST', headers },
       configuredEnv,
     );
     expect(invalidRes.status).toBe(400);
 
     const missingRes = await app.request(
       '/api/ledger/groups/-100999/toggle',
-      { method: 'POST' },
+      { method: 'POST', headers },
       configuredEnv,
     );
     expect(missingRes.status).toBe(404);
 
     const toggleRes = await app.request(
       '/api/ledger/groups/-100123456/toggle',
-      { method: 'POST' },
+      { method: 'POST', headers },
       configuredEnv,
     );
     expect(toggleRes.status).toBe(200);
@@ -299,12 +312,13 @@ describe('Ledger API routes with Supabase stub', () => {
 
   it('POST /api/ledger/rules validates body, creates fallback rule_set/version, and inserts rule', async () => {
     const db = installSupabaseStub();
+    const headers = await adminHeaders();
 
     const badRes = await app.request(
       '/api/ledger/rules',
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...headers },
         body: JSON.stringify({ title: 'x', body: 'y' }),
       },
       configuredEnv,
@@ -315,7 +329,7 @@ describe('Ledger API routes with Supabase stub', () => {
       '/api/ledger/rules',
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...headers },
         body: JSON.stringify({
           title: 'Dilarang Spam Link',
           body: 'Tidak boleh mengirim tautan promosi berulang di grup.',

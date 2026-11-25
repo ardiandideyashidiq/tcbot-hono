@@ -2,8 +2,10 @@ import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import type { AppEnv } from './lib/env';
 import { expireDueModerationActions } from './lib/telegram-sync';
+import authApp from './routes/auth';
 import healthApp from './routes/health';
 import ledgerApp from './routes/ledger';
+import publicApp from './routes/public';
 import webhookApp from './routes/webhook';
 
 const app = new Hono<AppEnv>()
@@ -32,6 +34,8 @@ const app = new Hono<AppEnv>()
     }
     return c.text('Not Found', 404);
   })
+  .route('/api/auth', authApp)
+  .route('/api/public', publicApp)
   .route('/api/health', healthApp)
   .route('/api/ledger', ledgerApp)
   .route('/webhook', webhookApp);

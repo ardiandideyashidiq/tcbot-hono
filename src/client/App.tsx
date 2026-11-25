@@ -1,4 +1,13 @@
-import { Loader2, Moon, Plus, RefreshCw, Search, Sun } from 'lucide-react';
+import {
+  Globe,
+  Loader2,
+  LogOut,
+  Moon,
+  Plus,
+  RefreshCw,
+  Search,
+  Sun,
+} from 'lucide-react';
 import {
   type MouseEvent,
   useCallback,
@@ -52,9 +61,11 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { AdminLogin } from './components/AdminLogin';
 import { AppSidebar } from './components/AppSidebar';
 import { CaseDossier } from './components/CaseDossier';
 import { PaginationBar, type PaginationMeta } from './components/PaginationBar';
+import { PublicDashboard } from './components/PublicDashboard';
 import {
   type BanRow,
   BansTable,
@@ -88,9 +99,22 @@ const STATUS_LABELS: Record<CaseStatus, string> = {
   rejected: 'Ditolak',
 };
 
-export function App() {
+interface AdminConsoleProps {
+  darkMode: boolean;
+  onToggleTheme: (event: MouseEvent<HTMLButtonElement>) => void;
+  onLogout: () => void;
+  onNavigatePublic: () => void;
+  onUnauthorized: () => void;
+}
+
+function AdminConsole({
+  darkMode,
+  onToggleTheme,
+  onLogout,
+  onNavigatePublic,
+  onUnauthorized,
+}: AdminConsoleProps) {
   const isMobile = useIsMobile();
-  const [darkMode, setDarkMode] = useState(false);
   const [activeSection, setActiveSection] = useState<LedgerSection>('appeals');
 
   const [cases, setCases] = useState<LedgerCase[]>([]);
@@ -124,17 +148,6 @@ export function App() {
   const tableContainerRef = useRef<HTMLElement | null>(null);
   const dynamicLimit = useDynamicPageSize(tableContainerRef, 8);
 
-  useEffect(() => {
-    const scheme = initTelegramMiniApp();
-    if (scheme === 'dark') {
-      setDarkMode(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', darkMode);
-  }, [darkMode]);
-
   const loadSectionData = useCallback(
     async (
       section: LedgerSection,
@@ -149,6 +162,10 @@ export function App() {
           const res = await api.api.ledger.appeals.$get({
             query: { ...query, status: appealStatus },
           });
+          if (res.status === 401) {
+            onUnauthorized();
+            return;
+          }
           if (!res.ok) throw new Error('Gagal memuat data banding');
           const data = await res.json();
           setCases(data.items);
@@ -156,18 +173,30 @@ export function App() {
           setSelectedId(data.items[0]?.id ?? null);
         } else if (section === 'bans') {
           const res = await api.api.ledger.bans.$get({ query });
+          if (res.status === 401) {
+            onUnauthorized();
+            return;
+          }
           if (!res.ok) throw new Error('Gagal memuat daftar ban');
           const data = await res.json();
           setBans(data.items);
           setPagination(data.pagination);
         } else if (section === 'warns') {
           const res = await api.api.ledger.warns.$get({ query });
+          if (res.status === 401) {
+            onUnauthorized();
+            return;
+          }
           if (!res.ok) throw new Error('Gagal memuat daftar peringatan');
           const data = await res.json();
           setWarns(data.items);
           setPagination(data.pagination);
         } else if (section === 'groups') {
           const res = await api.api.ledger.groups.$get({ query });
+          if (res.status === 401) {
+            onUnauthorized();
+            return;
+          }
           if (!res.ok) throw new Error('Gagal memuat grup terhubung');
           const data = await res.json();
           setGroups(data.items);
@@ -196,7 +225,7 @@ export function App() {
         setLoadingSection(false);
       }
     },
-    [],
+    [onUnauthorized],
   );
 
   useEffect(() => {
@@ -408,54 +437,6 @@ export function App() {
     }
   };
 
-  const handleToggleTheme = (event: MouseEvent<HTMLButtonElement>) => {
-    triggerHaptic('impact');
-    const nextDark = !darkMode;
-    const reducedMotion = window.matchMedia(
-      '(prefers-reduced-motion: reduce)',
-    ).matches;
-
-    if (reducedMotion || typeof document.startViewTransition !== 'function') {
-      document.documentElement.classList.add('theme-transition');
-      setDarkMode(nextDark);
-      window.setTimeout(() => {
-        document.documentElement.classList.remove('theme-transition');
-      }, 240);
-      return;
-    }
-
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = event.clientX || rect.left + rect.width / 2;
-    const y = event.clientY || rect.top + rect.height / 2;
-    const endRadius = Math.hypot(
-      Math.max(x, window.innerWidth - x),
-      Math.max(y, window.innerHeight - y),
-    );
-
-    const transition = document.startViewTransition(() => {
-      flushSync(() => {
-        setDarkMode(nextDark);
-      });
-      document.documentElement.classList.toggle('dark', nextDark);
-    });
-
-    void transition.ready.then(() => {
-      document.documentElement.animate(
-        {
-          clipPath: [
-            `circle(0px at ${x}px ${y}px)`,
-            `circle(${endRadius}px at ${x}px ${y}px)`,
-          ],
-        },
-        {
-          duration: 420,
-          easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
-          pseudoElement: '::view-transition-new(root)',
-        },
-      );
-    });
-  };
-
   return (
     <TooltipProvider>
       <SidebarProvider>
@@ -511,14 +492,30 @@ export function App() {
                 <Button
                   variant="ghost"
                   size="icon"
+                  aria-label="Halaman publik"
+                  onClick={onNavigatePublic}
+                >
+                  <Globe className="size-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
                   aria-label="Ubah tema warna"
-                  onClick={handleToggleTheme}
+                  onClick={onToggleTheme}
                 >
                   {darkMode ? (
                     <Sun className="size-4" />
                   ) : (
                     <Moon className="size-4" />
                   )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Keluar dari konsol admin"
+                  onClick={onLogout}
+                >
+                  <LogOut className="size-4" />
                 </Button>
               </div>
             </header>
@@ -872,5 +869,171 @@ export function App() {
         <Toaster />
       </SidebarProvider>
     </TooltipProvider>
+  );
+}
+
+function isAdminPath(pathname: string): boolean {
+  return pathname === '/admin' || pathname.startsWith('/admin/');
+}
+
+export function App() {
+  const [darkMode, setDarkMode] = useState(false);
+  const [pathname, setPathname] = useState(() =>
+    typeof window !== 'undefined' ? window.location.pathname : '/',
+  );
+  const [sessionState, setSessionState] = useState<
+    'checking' | 'authenticated' | 'unauthenticated'
+  >('checking');
+
+  useEffect(() => {
+    const scheme = initTelegramMiniApp();
+    if (scheme === 'dark') {
+      setDarkMode(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkMode);
+  }, [darkMode]);
+
+  useEffect(() => {
+    const handlePop = () => {
+      setPathname(window.location.pathname);
+    };
+    window.addEventListener('popstate', handlePop);
+    return () => window.removeEventListener('popstate', handlePop);
+  }, []);
+
+  const navigate = useCallback((to: '/' | '/admin') => {
+    if (window.location.pathname !== to) {
+      window.history.pushState({}, '', to);
+      setPathname(to);
+    }
+  }, []);
+
+  const handleUnauthorized = useCallback(() => {
+    setSessionState('unauthenticated');
+  }, []);
+
+  const checkSession = useCallback(async () => {
+    setSessionState('checking');
+    try {
+      const res = await api.api.auth.session.$get();
+      if (!res.ok) {
+        setSessionState('unauthenticated');
+        return;
+      }
+      const data = await res.json();
+      setSessionState(data.authenticated ? 'authenticated' : 'unauthenticated');
+    } catch {
+      setSessionState('unauthenticated');
+    }
+  }, []);
+
+  const onAdminRoute = isAdminPath(pathname);
+
+  useEffect(() => {
+    if (onAdminRoute) {
+      void checkSession();
+    }
+  }, [onAdminRoute, checkSession]);
+
+  const handleToggleTheme = (event: MouseEvent<HTMLButtonElement>) => {
+    triggerHaptic('impact');
+    const nextDark = !darkMode;
+    const reducedMotion = window.matchMedia(
+      '(prefers-reduced-motion: reduce)',
+    ).matches;
+
+    if (reducedMotion || typeof document.startViewTransition !== 'function') {
+      document.documentElement.classList.add('theme-transition');
+      setDarkMode(nextDark);
+      window.setTimeout(() => {
+        document.documentElement.classList.remove('theme-transition');
+      }, 240);
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX || rect.left + rect.width / 2;
+    const y = event.clientY || rect.top + rect.height / 2;
+    const endRadius = Math.hypot(
+      Math.max(x, window.innerWidth - x),
+      Math.max(y, window.innerHeight - y),
+    );
+
+    const transition = document.startViewTransition(() => {
+      flushSync(() => {
+        setDarkMode(nextDark);
+      });
+    });
+
+    void transition.ready.then(() => {
+      document.documentElement.animate(
+        {
+          clipPath: [
+            `circle(0px at ${x}px ${y}px)`,
+            `circle(${endRadius}px at ${x}px ${y}px)`,
+          ],
+        },
+        {
+          duration: 340,
+          easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+          pseudoElement: '::view-transition-new(root)',
+        },
+      );
+    });
+  };
+
+  const handleLogout = async () => {
+    await api.api.auth.logout.$post().catch(() => {});
+    setSessionState('unauthenticated');
+    toast('Sesi admin diakhiri');
+  };
+
+  if (!onAdminRoute) {
+    return (
+      <>
+        <PublicDashboard
+          darkMode={darkMode}
+          onToggleTheme={handleToggleTheme}
+          onNavigateAdmin={() => navigate('/admin')}
+        />
+        <Toaster />
+      </>
+    );
+  }
+
+  if (sessionState === 'checking') {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-background text-foreground">
+        <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin text-primary" />
+          Memeriksa sesi admin...
+        </div>
+      </div>
+    );
+  }
+
+  if (sessionState !== 'authenticated') {
+    return (
+      <>
+        <AdminLogin
+          onSuccess={() => setSessionState('authenticated')}
+          onBackPublic={() => navigate('/')}
+        />
+        <Toaster />
+      </>
+    );
+  }
+
+  return (
+    <AdminConsole
+      darkMode={darkMode}
+      onToggleTheme={handleToggleTheme}
+      onLogout={() => void handleLogout()}
+      onNavigatePublic={() => navigate('/')}
+      onUnauthorized={handleUnauthorized}
+    />
   );
 }

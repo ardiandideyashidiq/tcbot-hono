@@ -9,6 +9,7 @@
 
 import type { Update } from 'grammy/types';
 import { app } from '../src/index';
+import { getSessionSecret, signAdminSession } from '../src/lib/auth';
 
 interface Stats {
   name: string;
@@ -252,6 +253,12 @@ async function run() {
       ),
     );
 
+    const adminToken = await signAdminSession(
+      'admin',
+      getSessionSecret(benchEnv),
+    );
+    const adminCookie = `tcbot_admin_session=${encodeURIComponent(adminToken)}`;
+
     inProcessResults.push(
       await benchConcurrent(
         'in-process GET /api/ledger/appeals',
@@ -260,7 +267,7 @@ async function run() {
         async () => {
           const res = await app.request(
             '/api/ledger/appeals?page=1&limit=10',
-            {},
+            { headers: { Cookie: adminCookie } },
             benchEnv,
           );
           return res.status === 200;
@@ -294,13 +301,11 @@ async function run() {
 
   liveResults.push(
     await benchConcurrent(
-      `live GET ${liveBase}/api/ledger/appeals`,
+      `live GET ${liveBase}/api/public/overview`,
       20,
       4,
       async () => {
-        const res = await fetch(
-          `${liveBase}/api/ledger/appeals?page=1&limit=10`,
-        );
+        const res = await fetch(`${liveBase}/api/public/overview`);
         await res.arrayBuffer();
         return res.status === 200;
       },
@@ -309,13 +314,15 @@ async function run() {
 
   liveResults.push(
     await benchConcurrent(
-      `live GET ${liveBase}/api/ledger/bans`,
+      `live GET ${liveBase}/api/ledger/appeals (401 auth gate)`,
       20,
       4,
       async () => {
-        const res = await fetch(`${liveBase}/api/ledger/bans?page=1&limit=10`);
+        const res = await fetch(
+          `${liveBase}/api/ledger/appeals?page=1&limit=10`,
+        );
         await res.arrayBuffer();
-        return res.status === 200;
+        return res.status === 401;
       },
     ),
   );

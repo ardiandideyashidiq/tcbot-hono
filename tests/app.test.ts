@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { testClient } from 'hono/testing';
 import { app } from '../src/index';
+import { getSessionSecret, signAdminSession } from '../src/lib/auth';
 import { expireDueModerationActions } from '../src/lib/telegram-sync';
 
 const baseEnv = {
@@ -28,7 +29,15 @@ const baseEnv = {
   APPEALS: '',
   INFRA_CHAT_IDS: '',
   SENTRY_DSN: '',
+  ADMIN_USERNAME: 'admin',
+  ADMIN_PASSWORD: 'test_admin_password',
+  ADMIN_SESSION_SECRET: 'test_session_secret_key',
 } as unknown as CloudflareBindings;
+
+async function getAdminCookieHeader(env: CloudflareBindings): Promise<string> {
+  const token = await signAdminSession('admin', getSessionSecret(env));
+  return `tcbot_admin_session=${encodeURIComponent(token)}`;
+}
 
 describe('tcbot-hono foundation routes', () => {
   it('GET /api/health returns 200 with unconfigured supabase when env is empty', async () => {
@@ -74,17 +83,98 @@ describe('tcbot-hono foundation routes', () => {
     expect(await res.json()).toEqual({ ok: false, error: 'Not Found' });
   });
 
-  it('GET /api/ledger/* endpoints return unconfigured empty lists with pagination when supabase is unset', async () => {
+  it('GET /api/public/overview returns public stats and empty lists when supabase is unset', async () => {
     const client = testClient(app, baseEnv);
+    const res = await client.api.public.overview.$get();
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      configured: false,
+      communityName: 'Bot',
+      stats: {
+        connectedGroups: 0,
+        publishedRules: 0,
+        resolvedAppeals: 0,
+        activeModerations: 0,
+      },
+      rules: [],
+      groups: [],
+    });
+  });
+
+  it('GET /api/ledger/* and POST /api/ledger/* reject unauthenticated requests with 401', async () => {
+    const res = await app.request('/api/ledger/appeals', {}, baseEnv);
+    expect(res.status).toBe(401);
+
+    const postRes = await app.request(
+      '/api/ledger/rules',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'Test', body: 'Test rule body' }),
+      },
+      baseEnv,
+    );
+    expect(postRes.status).toBe(401);
+  });
+
+  it('POST /api/auth/login validates credentials and sets HttpOnly session cookie', async () => {
+    const badRes = await app.request(
+      '/api/auth/login',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'admin', password: 'wrong' }),
+      },
+      baseEnv,
+    );
+    expect(badRes.status).toBe(401);
+
+    const okRes = await app.request(
+      '/api/auth/login',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: 'admin',
+          password: 'test_admin_password',
+        }),
+      },
+      baseEnv,
+    );
+    expect(okRes.status).toBe(200);
+    const setCookie = okRes.headers.get('Set-Cookie') ?? '';
+    expect(setCookie).toContain('tcbot_admin_session=');
+    expect(setCookie).toContain('HttpOnly');
+
+    const sessionRes = await app.request(
+      '/api/auth/session',
+      { headers: { Cookie: setCookie.split(';')[0] ?? '' } },
+      baseEnv,
+    );
+    expect(sessionRes.status).toBe(200);
+    expect(await sessionRes.json()).toEqual({
+      configured: true,
+      authenticated: true,
+      username: 'admin',
+    });
+  });
+
+  it('GET /api/ledger/* endpoints return unconfigured empty lists with pagination when authenticated and supabase is unset', async () => {
+    const cookie = await getAdminCookieHeader(baseEnv);
+    const client = testClient(app, baseEnv);
+    const reqInit = { headers: { Cookie: cookie } };
 
     const [appealsRes, bansRes, warnsRes, groupsRes, rulesRes, staffRes] =
       await Promise.all([
-        client.api.ledger.appeals.$get({ query: { page: '2', limit: '10' } }),
-        client.api.ledger.bans.$get({ query: {} }),
-        client.api.ledger.warns.$get({ query: {} }),
-        client.api.ledger.groups.$get({ query: {} }),
-        client.api.ledger.rules.$get({ query: {} }),
-        client.api.ledger.staff.$get({ query: {} }),
+        client.api.ledger.appeals.$get(
+          { query: { page: '2', limit: '10' } },
+          reqInit,
+        ),
+        client.api.ledger.bans.$get({ query: {} }, reqInit),
+        client.api.ledger.warns.$get({ query: {} }, reqInit),
+        client.api.ledger.groups.$get({ query: {} }, reqInit),
+        client.api.ledger.rules.$get({ query: {} }, reqInit),
+        client.api.ledger.staff.$get({ query: {} }, reqInit),
       ]);
 
     expect(appealsRes.status).toBe(200);
@@ -116,21 +206,29 @@ describe('tcbot-hono foundation routes', () => {
     });
   });
 
-  it('POST /api/ledger/rules and /groups/:chatId/toggle return 503 when supabase is unconfigured', async () => {
+  it('POST /api/ledger/rules and /groups/:chatId/toggle return 503 when authenticated and supabase is unconfigured', async () => {
+    const cookie = await getAdminCookieHeader(baseEnv);
     const client = testClient(app, baseEnv);
-    const ruleRes = await client.api.ledger.rules.$post({
-      json: {
-        title: 'Larangan Spam',
-        body: 'Dilarang mengirim tautan spam di semua grup.',
-        categoryTitle: 'Keamanan',
-        isMandatory: true,
+    const reqInit = { headers: { Cookie: cookie } };
+    const ruleRes = await client.api.ledger.rules.$post(
+      {
+        json: {
+          title: 'Larangan Spam',
+          body: 'Dilarang mengirim tautan spam di semua grup.',
+          categoryTitle: 'Keamanan',
+          isMandatory: true,
+        },
       },
-    });
+      reqInit,
+    );
     expect(Number(ruleRes.status)).toBe(503);
 
-    const toggleRes = await client.api.ledger.groups[':chatId'].toggle.$post({
-      param: { chatId: '-100123456' },
-    });
+    const toggleRes = await client.api.ledger.groups[':chatId'].toggle.$post(
+      {
+        param: { chatId: '-100123456' },
+      },
+      reqInit,
+    );
     expect(toggleRes.status).toBe(503);
   });
 
