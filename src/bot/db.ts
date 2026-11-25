@@ -1,5 +1,5 @@
 import type { Chat, User } from 'grammy/types';
-import type { RoleKey } from '../db/database.types';
+import type { RoleKey } from '../db/types';
 import type { TypedSupabaseClient } from '../lib/supabase';
 import { type Locale, normalizeLocale } from './i18n';
 

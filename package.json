@@ -7,6 +7,7 @@
     "preview": "$npm_execpath run build && vite preview",
     "deploy": "$npm_execpath run build && wrangler deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
+    "db:types": "supabase gen types typescript --remote > src/db/database.types.ts",
     "lint": "biome lint .",
     "format": "biome format --write .",
     "check": "biome check .",
