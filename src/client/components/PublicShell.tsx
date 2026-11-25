@@ -44,7 +44,7 @@ export function PublicShell({
   children,
 }: PublicShellProps) {
   return (
-    <div className="relative min-h-dvh overflow-x-hidden bg-background text-foreground">
+    <div className="relative min-h-dvh overflow-x-clip bg-background text-foreground">
       {/* Ambient radial aurora backdrop */}
       <div
         aria-hidden="true"

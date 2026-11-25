@@ -8,7 +8,7 @@ import {
   Search,
   ShieldAlert,
 } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,7 @@ export function PublicRulesPage({
     'all' | 'mandatory' | 'advisory'
   >('all');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   const filteredRules = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -65,6 +66,42 @@ export function PublicRulesPage({
     }
     return [...groups.entries()];
   }, [filteredRules]);
+
+  useEffect(() => {
+    if (groupedRules.length === 0) {
+      setActiveCategory(null);
+      return;
+    }
+    setActiveCategory((prev) =>
+      prev && groupedRules.some(([cat]) => cat === prev)
+        ? prev
+        : (groupedRules[0]?.[0] ?? null),
+    );
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        const topEntry = visible[0];
+        if (topEntry) {
+          const catName = topEntry.target.getAttribute('data-category');
+          if (catName) setActiveCategory(catName);
+        }
+      },
+      {
+        rootMargin: '-110px 0px -65% 0px',
+        threshold: 0,
+      },
+    );
+
+    const sections = document.querySelectorAll<HTMLElement>('[data-category]');
+    for (const section of sections) {
+      observer.observe(section);
+    }
+
+    return () => observer.disconnect();
+  }, [groupedRules]);
 
   const mandatoryTotal = useMemo(
     () => (data?.rules ?? []).filter((r) => r.isMandatory).length,
@@ -227,30 +264,46 @@ export function PublicRulesPage({
         </Tabs>
       </section>
 
-      {/* Mobile horizontal category jump pills */}
+      {/* Mobile floating horizontal category jump pills */}
       {groupedRules.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto pb-1 lg:hidden">
-          {groupedRules.map(([category, items]) => (
-            <button
-              key={category}
-              type="button"
-              onClick={() => scrollToCategory(category)}
-              className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-primary/50"
-            >
-              <span>{category}</span>
-              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
-                {items.length}
-              </span>
-            </button>
-          ))}
+        <div className="sticky top-[106px] z-20 -mx-4 flex gap-2 overflow-x-auto border-y border-border/60 bg-background/90 px-4 py-2.5 backdrop-blur-md lg:hidden">
+          {groupedRules.map(([category, items]) => {
+            const isActive = activeCategory === category;
+            return (
+              <button
+                key={category}
+                type="button"
+                onClick={() => {
+                  setActiveCategory(category);
+                  scrollToCategory(category);
+                }}
+                className={`inline-flex min-h-9 shrink-0 items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
+                  isActive
+                    ? 'border-primary bg-primary text-primary-foreground shadow-xs'
+                    : 'border-border bg-card text-foreground hover:border-primary/50'
+                }`}
+              >
+                <span>{category}</span>
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-[10px] tabular-nums ${
+                    isActive
+                      ? 'bg-primary-foreground/20 text-primary-foreground'
+                      : 'bg-muted text-muted-foreground'
+                  }`}
+                >
+                  {items.length}
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
 
       {/* Main 2-column Wide Rules Layout */}
-      <div className="grid gap-8 lg:grid-cols-[260px_minmax(0,1fr)]">
-        {/* Sticky Desktop Category Sidebar */}
+      <div className="grid gap-8 lg:grid-cols-[270px_minmax(0,1fr)]">
+        {/* Floating Sticky Desktop Category TOC */}
         <aside className="hidden lg:block">
-          <div className="sticky top-24 flex flex-col gap-3 rounded-2xl border border-border/80 bg-card/90 p-4 shadow-xs">
+          <div className="sticky top-24 flex max-h-[calc(100dvh-7.5rem)] flex-col gap-3 overflow-y-auto rounded-2xl border border-border/80 bg-card/90 p-4 shadow-md backdrop-blur-md">
             <div className="flex items-center gap-2 px-2 pb-1 text-xs font-semibold text-muted-foreground">
               <BookOpen className="size-3.5 text-primary" />
               Daftar Kategori
@@ -261,19 +314,35 @@ export function PublicRulesPage({
               </p>
             ) : (
               <nav className="flex flex-col gap-1">
-                {groupedRules.map(([category, items]) => (
-                  <button
-                    key={category}
-                    type="button"
-                    onClick={() => scrollToCategory(category)}
-                    className="flex items-center justify-between rounded-lg px-2.5 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-                  >
-                    <span className="truncate font-medium">{category}</span>
-                    <span className="ml-2 shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[11px] tabular-nums">
-                      {items.length}
-                    </span>
-                  </button>
-                ))}
+                {groupedRules.map(([category, items]) => {
+                  const isActive = activeCategory === category;
+                  return (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => {
+                        setActiveCategory(category);
+                        scrollToCategory(category);
+                      }}
+                      className={`flex items-center justify-between rounded-lg px-2.5 py-2 text-left text-sm transition-colors ${
+                        isActive
+                          ? 'bg-primary/10 font-semibold text-primary'
+                          : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+                      }`}
+                    >
+                      <span className="truncate">{category}</span>
+                      <span
+                        className={`ml-2 shrink-0 rounded-md px-1.5 py-0.5 text-[11px] tabular-nums ${
+                          isActive
+                            ? 'bg-primary/15 text-primary'
+                            : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {items.length}
+                      </span>
+                    </button>
+                  );
+                })}
               </nav>
             )}
 
@@ -306,7 +375,8 @@ export function PublicRulesPage({
                 <section
                   key={category}
                   id={catId}
-                  className="rule-category-block scroll-mt-24 overflow-hidden rounded-2xl border border-border/80 bg-card/95 shadow-xs"
+                  data-category={category}
+                  className="rule-category-block scroll-mt-28 overflow-hidden rounded-2xl border border-border/80 bg-card/95 shadow-xs lg:scroll-mt-24"
                 >
                   <div className="flex items-center justify-between border-b border-border/70 bg-muted/40 px-5 py-3.5 sm:px-6">
                     <h2 className="text-base font-semibold tracking-tight text-foreground">
