@@ -1,10 +1,10 @@
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
-import { ArrowLeft, MessageSquareWarning, Users } from 'lucide-react';
+import { ArrowLeft, MessageSquareWarning } from 'lucide-react';
 import { useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import type { PublicOverview } from '../hooks/use-public-overview';
+import { TicketStub } from './public/TicketStub';
 
 gsap.registerPlugin(useGSAP);
 
@@ -31,8 +31,8 @@ export function PublicGroupsPage({
       mm.add('(prefers-reduced-motion: no-preference)', () => {
         gsap.from('.group-card-reveal', {
           opacity: 0,
-          y: 14,
-          duration: 0.35,
+          y: 10,
+          duration: 0.3,
           stagger: 0.04,
           ease: 'power2.out',
           clearProps: 'transform,opacity',
@@ -43,100 +43,91 @@ export function PublicGroupsPage({
     { scope: containerRef, dependencies: [data?.groups.length] },
   );
 
+  const groups = data?.groups ?? [];
+
   return (
-    <div ref={containerRef} className="flex flex-col gap-8">
+    <div
+      ref={containerRef}
+      className="flex h-full min-h-0 flex-col gap-3 sm:gap-4"
+    >
       {error && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          <span>{error}</span>
-          <Button variant="outline" size="sm" onClick={onRetry}>
+        <div className="flex shrink-0 items-center justify-between gap-3 border border-destructive/40 bg-[var(--tape-crimson)] px-3 py-1.5 text-xs text-destructive">
+          <span className="truncate">{error}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 shrink-0 px-2.5 text-xs"
+            onClick={onRetry}
+          >
             Coba lagi
           </Button>
         </div>
       )}
 
-      <section className="flex flex-col justify-between gap-5 rounded-2xl border border-border/80 bg-card/90 p-6 shadow-xs sm:flex-row sm:items-end sm:p-8">
-        <div className="flex flex-col gap-3">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[var(--rule-line)] pb-2.5">
+        <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"
             onClick={onBackOverview}
-            className="inline-flex w-fit items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            aria-label="Kembali ke ringkasan"
+            className="inline-flex min-h-10 shrink-0 items-center gap-1.5 border border-[var(--rule-line)] bg-card/70 px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-[var(--ink)] sm:min-h-8"
           >
             <ArrowLeft className="size-3.5" />
-            Kembali ke ringkasan
+            <span className="hidden sm:inline">Ringkasan</span>
           </button>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-4xl">
-            Grup Terhubung & Panduan Banding
+          <h1 className="truncate font-display text-2xl leading-none tracking-tight text-[var(--ink)] sm:text-3xl">
+            Grup Terhubung {data?.communityName || 'tcbot'}
           </h1>
-          <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-            Daftar grup Telegram yang aktif menerapkan moderasi federasi dan
-            aturan komunitas {data?.communityName || 'tcbot'}.
-          </p>
         </div>
 
-        <div className="rounded-xl border border-border bg-background/80 px-5 py-3">
-          <p className="text-xs text-muted-foreground">Grup aktif</p>
-          <p className="text-2xl font-bold tabular-nums">
+        <div className="stamp flex items-baseline gap-1.5 px-2.5 py-0.5 font-mono text-xs text-[var(--ink)]">
+          <span className="font-bold tabular-nums">
             {data?.stats.connectedGroups ?? 0}
-          </p>
+          </span>
+          <span className="text-[10px] text-muted-foreground uppercase">
+            grup aktif
+          </span>
         </div>
-      </section>
+      </header>
 
-      {loading && !data ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Skeleton className="h-28 rounded-2xl" />
-          <Skeleton className="h-28 rounded-2xl" />
-          <Skeleton className="h-28 rounded-2xl" />
-        </div>
-      ) : (data?.groups.length ?? 0) === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border px-6 py-14 text-center text-sm text-muted-foreground">
-          Belum ada grup aktif yang terdaftar dalam federasi.
-        </div>
-      ) : (
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {data?.groups.map((group) => (
-            <div
-              key={group.chatId}
-              className="group-card-reveal flex flex-col justify-between gap-4 rounded-2xl border border-border/80 bg-card/90 p-5 shadow-xs transition-colors hover:border-primary/40"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <Users className="size-5" />
-                </div>
-                <div className="min-w-0">
-                  <h2 className="truncate text-base font-semibold text-foreground">
-                    {group.title}
-                  </h2>
-                  <p className="font-mono text-xs text-muted-foreground">
-                    {group.chatType}
-                  </p>
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Terhubung sejak{' '}
-                {new Date(group.addedAt).toLocaleDateString('id-ID', {
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric',
-                })}
-              </p>
-            </div>
-          ))}
-        </section>
-      )}
+      {/* Internal scrolling TicketStub collage */}
+      <div className="docket-scroll min-h-0 flex-1 overflow-y-auto px-1 py-1">
+        {loading && !data ? (
+          <div className="columns-1 gap-4 sm:columns-2 xl:columns-3">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <div
+                key={i}
+                className="ticket-edge mb-4 h-28 break-inside-avoid animate-pulse border border-[var(--rule-line)] bg-muted/40"
+              />
+            ))}
+          </div>
+        ) : groups.length === 0 ? (
+          <div className="border border-dashed border-[var(--rule-line)] px-6 py-12 text-center text-sm text-muted-foreground">
+            Belum ada grup aktif yang terdaftar dalam federasi.
+          </div>
+        ) : (
+          <section
+            aria-label="Daftar grup terhubung"
+            className="columns-1 gap-4 sm:columns-2 xl:columns-3"
+          >
+            {groups.map((group, idx) => (
+              <TicketStub key={group.chatId} group={group} index={idx} />
+            ))}
+          </section>
+        )}
+      </div>
 
-      <section className="flex flex-col gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-6">
-        <div className="flex items-center gap-2 text-base font-semibold text-foreground">
-          <MessageSquareWarning className="size-5 text-primary" />
-          Cara Mengajukan Banding
-        </div>
-        <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
-          Jika Anda menerima sanksi ban federasi dan ingin mengajukan peninjauan
-          ulang, kirim pesan pribadi (DM) ke bot dengan format{' '}
-          <code className="rounded bg-background px-1.5 py-0.5 font-mono text-xs">
-            /appeal &lt;kode_ban&gt; &lt;alasan minimal 10 karakter&gt;
+      {/* Bottom tilted appeal tape */}
+      <section aria-label="Panduan pengajuan banding" className="shrink-0 pt-1">
+        <div className="flex origin-left -rotate-[0.6deg] flex-wrap items-center justify-between gap-2 border border-[var(--rule-line)] bg-[var(--tape-crimson)] px-3.5 py-2 text-xs text-[var(--ink)]">
+          <div className="flex items-center gap-2 font-medium">
+            <MessageSquareWarning className="size-4 shrink-0 text-rose-700 dark:text-rose-300" />
+            <span>Ajukan banding via DM bot:</span>
+          </div>
+          <code className="bg-[var(--paper)]/85 px-2 py-0.5 font-mono text-[11px] text-[var(--ink)]">
+            /appeal &lt;kode_ban&gt; &lt;alasan ≥10 karakter&gt;
           </code>
-          . Banding akan dikirim langsung ke antrean moderator untuk ditinjau.
-        </p>
+        </div>
       </section>
     </div>
   );

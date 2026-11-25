@@ -1,21 +1,11 @@
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
-import {
-  ArrowLeft,
-  BookOpen,
-  Check,
-  Link2,
-  Search,
-  ShieldAlert,
-} from 'lucide-react';
+import { ArrowLeft, Check, Link2, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { PublicOverview, PublicRule } from '../hooks/use-public-overview';
+import { SectionTab } from './public/SectionTab';
 
 gsap.registerPlugin(useGSAP);
 
@@ -35,6 +25,7 @@ export function PublicRulesPage({
   onBackOverview,
 }: PublicRulesPageProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [search, setSearch] = useState('');
   const [ruleFilter, setRuleFilter] = useState<
     'all' | 'mandatory' | 'advisory'
@@ -78,6 +69,7 @@ export function PublicRulesPage({
         : (groupedRules[0]?.[0] ?? null),
     );
 
+    const rootEl = scrollContainerRef.current;
     const observer = new IntersectionObserver(
       (entries) => {
         const visible = entries
@@ -90,12 +82,14 @@ export function PublicRulesPage({
         }
       },
       {
-        rootMargin: '-110px 0px -65% 0px',
+        root: rootEl,
+        rootMargin: '-24px 0px -65% 0px',
         threshold: 0,
       },
     );
 
-    const sections = document.querySelectorAll<HTMLElement>('[data-category]');
+    const sections =
+      rootEl?.querySelectorAll<HTMLElement>('[data-category]') ?? [];
     for (const section of sections) {
       observer.observe(section);
     }
@@ -110,41 +104,15 @@ export function PublicRulesPage({
 
   useGSAP(
     () => {
-      const mm = gsap.matchMedia();
-      mm.add('(prefers-reduced-motion: no-preference)', () => {
-        gsap.from('.rules-hero-reveal', {
-          opacity: 0,
-          y: 16,
-          duration: 0.42,
-          stagger: 0.05,
-          ease: 'power2.out',
-          clearProps: 'transform,opacity',
-        });
-      });
-      return () => mm.revert();
-    },
-    { scope: containerRef },
-  );
-
-  useGSAP(
-    () => {
       if (groupedRules.length === 0) return;
       const mm = gsap.matchMedia();
       mm.add('(prefers-reduced-motion: no-preference)', () => {
         gsap.from('.rule-category-block', {
           opacity: 0,
-          y: 14,
-          duration: 0.35,
-          stagger: 0.06,
+          y: 10,
+          duration: 0.3,
+          stagger: 0.04,
           ease: 'power2.out',
-          clearProps: 'transform,opacity',
-        });
-        gsap.from('.rule-card-item', {
-          opacity: 0,
-          y: 8,
-          duration: 0.25,
-          stagger: 0.02,
-          ease: 'power1.out',
           clearProps: 'transform,opacity',
         });
       });
@@ -176,265 +144,279 @@ export function PublicRulesPage({
     }
   };
 
+  const totalRules = data?.rules.length ?? 0;
+
   return (
-    <div ref={containerRef} className="flex flex-col gap-8">
+    <div
+      ref={containerRef}
+      className="flex h-full min-h-0 flex-col gap-3 sm:gap-4"
+    >
       {error && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          <span>{error}</span>
-          <Button variant="outline" size="sm" onClick={onRetry}>
+        <div className="flex shrink-0 items-center justify-between gap-3 border border-destructive/40 bg-[var(--tape-crimson)] px-3 py-1.5 text-xs text-destructive">
+          <span className="truncate">{error}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 shrink-0 px-2.5 text-xs"
+            onClick={onRetry}
+          >
             Coba lagi
           </Button>
         </div>
       )}
 
-      {/* Rules Page Hero Banner */}
-      <section className="rules-hero-reveal flex flex-col justify-between gap-6 rounded-2xl border border-border/80 bg-card/90 p-6 shadow-xs backdrop-blur-sm sm:p-8 lg:flex-row lg:items-end">
-        <div className="flex flex-col gap-3.5">
+      {/* Compact single-row header */}
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[var(--rule-line)] pb-2.5">
+        <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"
             onClick={onBackOverview}
-            className="inline-flex w-fit items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            aria-label="Kembali ke ringkasan"
+            className="inline-flex min-h-10 shrink-0 items-center gap-1.5 border border-[var(--rule-line)] bg-card/70 px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-[var(--ink)] sm:min-h-8"
           >
             <ArrowLeft className="size-3.5" />
-            Kembali ke ringkasan
+            <span className="hidden sm:inline">Ringkasan</span>
           </button>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-4xl">
-            Aturan Lengkap {data?.communityName || 'tcbot'}
+          <h1 className="truncate font-display text-2xl leading-none tracking-tight text-[var(--ink)] sm:text-3xl">
+            Piagam Aturan {data?.communityName || 'tcbot'}
           </h1>
-          <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-            Seluruh butir peraturan yang berlaku lintas grup terhubung. Gunakan
-            pencarian atau daftar kategori untuk langsung melompat ke pasal yang
-            dibutuhkan.
-          </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="rounded-xl border border-border bg-background/80 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Total butir</p>
-            <p className="text-xl font-bold tabular-nums">
-              {data?.rules.length ?? 0}
-            </p>
+        <div className="flex shrink-0 items-center gap-2.5">
+          <div className="stamp flex items-baseline gap-1.5 px-2.5 py-0.5 font-mono text-xs text-[var(--ink)]">
+            <span className="font-bold tabular-nums">{totalRules}</span>
+            <span className="text-[10px] text-muted-foreground uppercase">
+              total
+            </span>
           </div>
-          <div className="rounded-xl border border-rose-500/25 bg-rose-500/5 px-4 py-3">
-            <p className="text-xs text-rose-600 dark:text-rose-400">
-              Aturan wajib
-            </p>
-            <p className="text-xl font-bold tabular-nums text-rose-600 dark:text-rose-400">
-              {mandatoryTotal}
-            </p>
+          <div className="stamp flex items-baseline gap-1.5 px-2.5 py-0.5 font-mono text-xs text-rose-700 dark:text-rose-300">
+            <span className="font-bold tabular-nums">{mandatoryTotal}</span>
+            <span className="text-[10px] uppercase">wajib</span>
           </div>
         </div>
-      </section>
+      </header>
 
-      {/* Filter & Search Bar */}
-      <section className="rules-hero-reveal flex flex-col gap-3 rounded-2xl border border-border/80 bg-card/90 p-4 shadow-xs sm:flex-row sm:items-center sm:justify-between sm:p-5">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
+      {/* Index-card filter baseline + paper tabs */}
+      <section className="flex shrink-0 flex-col gap-2.5 border-b border-[var(--rule-line)] pb-2 sm:flex-row sm:items-end sm:justify-between">
+        <label className="relative flex flex-1 items-center gap-2 border-b border-[var(--rule-line)] pb-1 focus-within:border-[var(--ink)]">
+          <Search className="size-4 shrink-0 text-muted-foreground" />
+          <input
+            type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari pasal, kata kunci, kategori, atau kode aturan..."
-            className="h-11 rounded-xl pl-10 sm:h-10"
+            placeholder="Cari pasal, kata kunci, kategori, atau #kode..."
+            aria-label="Cari aturan"
+            className="min-h-9 w-full bg-transparent text-sm text-[var(--ink)] placeholder:text-muted-foreground focus:outline-none"
           />
-        </div>
+        </label>
 
-        <Tabs
-          value={ruleFilter}
-          onValueChange={(val) =>
-            setRuleFilter(val as 'all' | 'mandatory' | 'advisory')
-          }
+        <div
+          role="tablist"
+          aria-label="Filter sifat aturan"
+          className="flex items-end gap-1 overflow-x-auto"
         >
-          <TabsList className="h-11 w-full sm:h-10 sm:w-auto">
-            <TabsTrigger value="all" className="flex-1 px-3.5 sm:flex-none">
-              Semua ({data?.rules.length ?? 0})
-            </TabsTrigger>
-            <TabsTrigger
-              value="mandatory"
-              className="flex-1 px-3.5 sm:flex-none"
-            >
-              Wajib ({mandatoryTotal})
-            </TabsTrigger>
-            <TabsTrigger
-              value="advisory"
-              className="flex-1 px-3.5 sm:flex-none"
-            >
-              Anjuran ({(data?.rules.length ?? 0) - mandatoryTotal})
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+          <SectionTab
+            active={ruleFilter === 'all'}
+            onClick={() => setRuleFilter('all')}
+            badge={totalRules}
+          >
+            Semua
+          </SectionTab>
+          <SectionTab
+            active={ruleFilter === 'mandatory'}
+            onClick={() => setRuleFilter('mandatory')}
+            badge={mandatoryTotal}
+          >
+            Wajib
+          </SectionTab>
+          <SectionTab
+            active={ruleFilter === 'advisory'}
+            onClick={() => setRuleFilter('advisory')}
+            badge={totalRules - mandatoryTotal}
+          >
+            Anjuran
+          </SectionTab>
+        </div>
       </section>
 
-      {/* Mobile floating horizontal category jump pills */}
-      {groupedRules.length > 0 && (
-        <div className="sticky top-[106px] z-20 -mx-4 flex gap-2 overflow-x-auto border-y border-border/60 bg-background/90 px-4 py-2.5 backdrop-blur-md lg:hidden">
-          {groupedRules.map(([category, items]) => {
-            const isActive = activeCategory === category;
-            return (
-              <button
-                key={category}
-                type="button"
-                onClick={() => {
-                  setActiveCategory(category);
-                  scrollToCategory(category);
-                }}
-                className={`inline-flex min-h-9 shrink-0 items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
-                  isActive
-                    ? 'border-primary bg-primary text-primary-foreground shadow-xs'
-                    : 'border-border bg-card text-foreground hover:border-primary/50'
-                }`}
-              >
-                <span>{category}</span>
-                <span
-                  className={`rounded-full px-1.5 py-0.5 text-[10px] tabular-nums ${
-                    isActive
-                      ? 'bg-primary-foreground/20 text-primary-foreground'
-                      : 'bg-muted text-muted-foreground'
-                  }`}
-                >
-                  {items.length}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Main 2-column Wide Rules Layout */}
-      <div className="grid gap-8 lg:grid-cols-[270px_minmax(0,1fr)]">
-        {/* Floating Sticky Desktop Category TOC */}
-        <aside className="hidden lg:block">
-          <div className="sticky top-24 flex max-h-[calc(100dvh-7.5rem)] flex-col gap-3 overflow-y-auto rounded-2xl border border-border/80 bg-card/90 p-4 shadow-md backdrop-blur-md">
-            <div className="flex items-center gap-2 px-2 pb-1 text-xs font-semibold text-muted-foreground">
-              <BookOpen className="size-3.5 text-primary" />
-              Daftar Kategori
-            </div>
-            {groupedRules.length === 0 ? (
-              <p className="px-2 text-xs text-muted-foreground">
-                Tidak ada kategori cocok.
-              </p>
-            ) : (
-              <nav className="flex flex-col gap-1">
-                {groupedRules.map(([category, items]) => {
-                  const isActive = activeCategory === category;
-                  return (
-                    <button
-                      key={category}
-                      type="button"
-                      onClick={() => {
-                        setActiveCategory(category);
-                        scrollToCategory(category);
-                      }}
-                      className={`flex items-center justify-between rounded-lg px-2.5 py-2 text-left text-sm transition-colors ${
-                        isActive
-                          ? 'bg-primary/10 font-semibold text-primary'
-                          : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
-                      }`}
-                    >
-                      <span className="truncate">{category}</span>
-                      <span
-                        className={`ml-2 shrink-0 rounded-md px-1.5 py-0.5 text-[11px] tabular-nums ${
-                          isActive
-                            ? 'bg-primary/15 text-primary'
-                            : 'bg-muted text-muted-foreground'
-                        }`}
-                      >
-                        {items.length}
+      {/* Main 2-column internal scroll layout */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-8">
+        {/* Desktop spine index TOC */}
+        <aside className="hidden min-h-0 flex-col border-r border-[var(--rule-line)] pr-4 lg:flex">
+          <p className="mb-2 shrink-0 font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
+            Daftar Kategori
+          </p>
+          {groupedRules.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Tidak ada kategori cocok.
+            </p>
+          ) : (
+            <nav
+              aria-label="Indeks kategori aturan"
+              className="docket-scroll flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pr-1"
+            >
+              {groupedRules.map(([category, items], idx) => {
+                const isActive = activeCategory === category;
+                const numeral = String(idx + 1).padStart(2, '0');
+                return (
+                  <button
+                    key={category}
+                    type="button"
+                    onClick={() => {
+                      setActiveCategory(category);
+                      scrollToCategory(category);
+                    }}
+                    className={`flex min-h-9 items-center justify-between gap-2 px-2 py-1.5 text-left text-xs transition-colors ${
+                      isActive
+                        ? 'tape font-semibold text-[var(--ink)]'
+                        : 'text-muted-foreground hover:text-[var(--ink)]'
+                    }`}
+                  >
+                    <span className="flex min-w-0 items-baseline gap-2">
+                      <span className="shrink-0 font-mono text-[10px] tabular-nums opacity-75">
+                        {numeral}
                       </span>
-                    </button>
-                  );
-                })}
-              </nav>
-            )}
-
-            <div className="mt-2 rounded-xl border border-primary/20 bg-primary/5 p-3.5 text-xs leading-relaxed text-muted-foreground">
-              <div className="mb-1 flex items-center gap-1.5 font-semibold text-foreground">
-                <ShieldAlert className="size-3.5 text-primary" />
-                Butuh banding?
-              </div>
-              Kirim <code className="font-mono">/appeal</code> lewat DM bot
-              untuk meninjau ulang sanksi aktif.
-            </div>
-          </div>
+                      <span className="truncate">{category}</span>
+                    </span>
+                    <span className="shrink-0 font-mono text-[10px] tabular-nums">
+                      {items.length}
+                    </span>
+                  </button>
+                );
+              })}
+            </nav>
+          )}
         </aside>
 
-        {/* Full Rules Cards List */}
-        <div className="flex flex-col gap-6">
+        {/* Scrollable rules ledger */}
+        <div
+          ref={scrollContainerRef}
+          className="docket-scroll ledger-rule relative min-h-0 flex-1 overflow-y-auto pr-1"
+        >
+          {/* Mobile sticky paper-tab category jump */}
+          {groupedRules.length > 0 && (
+            <div className="sticky top-0 z-20 mb-3 flex gap-1.5 overflow-x-auto border-b border-[var(--rule-line)] bg-[var(--paper)]/95 py-1.5 lg:hidden">
+              {groupedRules.map(([category, items], idx) => {
+                const isActive = activeCategory === category;
+                return (
+                  <SectionTab
+                    key={category}
+                    active={isActive}
+                    onClick={() => {
+                      setActiveCategory(category);
+                      scrollToCategory(category);
+                    }}
+                    badge={items.length}
+                  >
+                    {String(idx + 1).padStart(2, '0')} · {category}
+                  </SectionTab>
+                );
+              })}
+            </div>
+          )}
+
           {loading && !data ? (
-            <div className="flex flex-col gap-4">
-              <Skeleton className="h-36 w-full rounded-2xl" />
-              <Skeleton className="h-36 w-full rounded-2xl" />
+            <div className="flex flex-col gap-4 py-2">
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="h-24 animate-pulse border-b border-[var(--rule-line)] bg-muted/30"
+                />
+              ))}
             </div>
           ) : groupedRules.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border px-6 py-16 text-center text-sm text-muted-foreground">
+            <div className="border border-dashed border-[var(--rule-line)] px-6 py-12 text-center text-sm text-muted-foreground">
               Belum ada aturan yang cocok dengan filter atau pencarian Anda.
             </div>
           ) : (
-            groupedRules.map(([category, items]) => {
-              const catId = `cat-${category.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
-              return (
-                <section
-                  key={category}
-                  id={catId}
-                  data-category={category}
-                  className="rule-category-block scroll-mt-28 overflow-hidden rounded-2xl border border-border/80 bg-card/95 shadow-xs lg:scroll-mt-24"
-                >
-                  <div className="flex items-center justify-between border-b border-border/70 bg-muted/40 px-5 py-3.5 sm:px-6">
-                    <h2 className="text-base font-semibold tracking-tight text-foreground">
-                      {category}
-                    </h2>
-                    <span className="text-xs font-medium text-muted-foreground tabular-nums">
-                      {items.length} butir
-                    </span>
-                  </div>
+            <div className="flex flex-col gap-6 pb-4">
+              {groupedRules.map(([category, items], catIdx) => {
+                const catId = `cat-${category.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+                const isOffsetShelf = catIdx % 2 === 1;
+                return (
+                  <section
+                    key={category}
+                    id={catId}
+                    data-category={category}
+                    className={`rule-category-block scroll-mt-12 ${
+                      isOffsetShelf
+                        ? 'lg:ml-10 lg:border-l lg:border-dashed lg:border-[var(--rule-line)] lg:pl-5'
+                        : ''
+                    }`}
+                  >
+                    <div className="mb-2 flex items-baseline justify-between gap-2">
+                      <h2 className="tape font-display text-xl tracking-tight text-[var(--ink)] sm:text-2xl">
+                        {String(catIdx + 1).padStart(2, '0')}. {category}
+                      </h2>
+                      <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
+                        {items.length} butir
+                      </span>
+                    </div>
 
-                  <ul className="divide-y divide-border/60">
-                    {items.map((rule) => (
-                      <li
-                        key={rule.id}
-                        id={rule.ruleKey}
-                        className="rule-card-item scroll-mt-24 flex flex-col gap-2 px-5 py-5 transition-colors hover:bg-muted/25 sm:px-6"
-                      >
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          <div className="flex flex-wrap items-center gap-2.5">
-                            <h3 className="text-base font-semibold text-foreground">
-                              {rule.title}
-                            </h3>
-                            {rule.isMandatory && (
-                              <Badge variant="destructive">Wajib</Badge>
-                            )}
-                          </div>
-
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 gap-1.5 text-xs text-muted-foreground"
-                            onClick={() =>
-                              void handleCopyRuleLink(rule.ruleKey)
-                            }
+                    <ol className="divide-y divide-[var(--rule-line)] border-t border-[var(--rule-line)]">
+                      {items.map((rule, ruleIdx) => {
+                        const isCopied = copiedKey === rule.ruleKey;
+                        return (
+                          <li
+                            key={rule.id}
+                            id={rule.ruleKey}
+                            className="group relative flex gap-3 py-3 transition-colors hover:bg-muted/20 sm:gap-5"
                           >
-                            {copiedKey === rule.ruleKey ? (
-                              <>
-                                <Check className="size-3.5 text-emerald-500" />
-                                Disalin
-                              </>
-                            ) : (
-                              <>
-                                <Link2 className="size-3.5" />
-                                Salin tautan
-                              </>
-                            )}
-                          </Button>
-                        </div>
+                            {/* Hanging marginalia numeral */}
+                            <span className="w-6 shrink-0 pt-0.5 font-mono text-xs text-muted-foreground tabular-nums">
+                              {String(ruleIdx + 1).padStart(2, '0')}
+                            </span>
 
-                        <p className="max-w-4xl text-sm leading-relaxed text-muted-foreground sm:text-[15px]">
-                          {rule.body}
-                        </p>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              );
-            })
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                                <div className="flex flex-wrap items-baseline gap-2">
+                                  <h3 className="text-sm font-semibold text-[var(--ink)] sm:text-base">
+                                    {rule.title}
+                                  </h3>
+                                  <span
+                                    className={`font-mono text-[10px] uppercase ${
+                                      rule.isMandatory
+                                        ? 'text-rose-700 dark:text-rose-300'
+                                        : 'text-muted-foreground'
+                                    }`}
+                                  >
+                                    [{rule.isMandatory ? 'wajib' : 'anjuran'}]
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-mono text-[11px] text-muted-foreground">
+                                    #{rule.ruleKey}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      void handleCopyRuleLink(rule.ruleKey)
+                                    }
+                                    aria-label={`Salin tautan ${rule.ruleKey}`}
+                                    className="inline-flex min-h-8 min-w-8 items-center justify-center border border-[var(--rule-line)] bg-card px-1.5 text-muted-foreground opacity-100 transition-opacity hover:text-[var(--ink)] sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+                                  >
+                                    {isCopied ? (
+                                      <Check className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                                    ) : (
+                                      <Link2 className="size-3.5" />
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+
+                              <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                                {rule.body}
+                              </p>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  </section>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>
