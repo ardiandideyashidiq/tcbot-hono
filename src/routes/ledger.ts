@@ -26,6 +26,13 @@ const revokeBanSchema = z.object({
   reason: z.string().max(500).optional(),
 });
 
+const createRuleSchema = z.object({
+  title: z.string().min(3).max(200),
+  body: z.string().min(5).max(3500),
+  categoryTitle: z.string().min(2).max(100).default('Umum & Etika'),
+  isMandatory: z.boolean().default(true),
+});
+
 function requireSupabase(env: CloudflareBindings): TypedSupabaseClient | null {
   if (!hasSupabaseConfig(env)) {
     return null;
@@ -500,6 +507,124 @@ const ledgerApp = new Hono<AppEnv>()
       items,
       pagination: buildPagination(page, limit, count ?? items.length),
     });
+  })
+  .post('/groups/:chatId/toggle', async (c) => {
+    const supabase = requireSupabase(c.env);
+    if (!supabase) {
+      throw new HTTPException(503, { message: 'Supabase is not configured' });
+    }
+
+    const chatId = Number(c.req.param('chatId'));
+    if (!Number.isInteger(chatId) || chatId === 0) {
+      throw new HTTPException(400, { message: 'Invalid chat ID' });
+    }
+
+    const { data: current } = await supabase
+      .from('connected_chats')
+      .select('is_active')
+      .eq('chat_id', chatId)
+      .maybeSingle();
+
+    if (!current) {
+      throw new HTTPException(404, { message: 'Connected group not found' });
+    }
+
+    const { data: updated, error } = await supabase
+      .from('connected_chats')
+      .update({ is_active: !current.is_active })
+      .eq('chat_id', chatId)
+      .select('chat_id, is_active')
+      .single();
+
+    if (error || !updated) {
+      throw new HTTPException(500, {
+        message: error?.message ?? 'Failed to toggle group',
+      });
+    }
+
+    return c.json({ ok: true, group: updated });
+  })
+  .post('/rules', zValidator('json', createRuleSchema), async (c) => {
+    const supabase = requireSupabase(c.env);
+    if (!supabase) {
+      throw new HTTPException(503, { message: 'Supabase is not configured' });
+    }
+
+    const { title, body, categoryTitle, isMandatory } = c.req.valid('json');
+    let { data: version } = await supabase
+      .from('rule_set_versions')
+      .select('id')
+      .in('status', ['published', 'draft'])
+      .order('version_number', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!version) {
+      const { data: createdSet, error: setErr } = await supabase
+        .from('rule_sets')
+        .insert({
+          scope_type: 'community',
+          rule_set_key: 'community_rules',
+          name: 'Aturan Komunitas',
+          is_active: true,
+        })
+        .select('id')
+        .single();
+      if (setErr || !createdSet) {
+        throw new HTTPException(500, {
+          message: setErr?.message ?? 'Failed to create rule set',
+        });
+      }
+
+      const { data: createdVer, error: verErr } = await supabase
+        .from('rule_set_versions')
+        .insert({
+          rule_set_id: createdSet.id,
+          version_number: 1,
+          locale: 'id-ID',
+          status: 'published',
+          published_at: new Date().toISOString(),
+        })
+        .select('id')
+        .single();
+      if (verErr || !createdVer) {
+        throw new HTTPException(500, {
+          message: verErr?.message ?? 'Failed to create rule version',
+        });
+      }
+      version = createdVer;
+    }
+
+    const slug = `rule_${Date.now().toString(36)}`;
+    const categoryKey = categoryTitle
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_|_$/g, '');
+
+    const { data: rule, error } = await supabase
+      .from('rule_items')
+      .insert({
+        rule_set_version_id: version.id,
+        rule_key: slug,
+        category_key: categoryKey || 'umum',
+        category_title: categoryTitle,
+        title,
+        body,
+        is_mandatory: isMandatory,
+        sort_order: 500,
+      })
+      .select(
+        'id, rule_key, category_key, category_title, title, body, is_mandatory',
+      )
+      .single();
+
+    if (error || !rule) {
+      throw new HTTPException(500, {
+        message: error?.message ?? 'Failed to create rule',
+      });
+    }
+
+    return c.json({ ok: true, rule }, 201);
   })
   .get('/rules', zValidator('query', paginationQuerySchema), async (c) => {
     const { page, limit } = c.req.valid('query');

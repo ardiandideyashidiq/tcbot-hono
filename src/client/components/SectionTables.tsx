@@ -267,9 +267,11 @@ export function WarnsTable({
 export function GroupsTable({
   items,
   loading,
+  onToggleGroup,
 }: {
   items: GroupRow[];
   loading: boolean;
+  onToggleGroup: (chatId: number) => void;
 }) {
   if (loading) return <TableLoadingSkeleton />;
 
@@ -281,7 +283,7 @@ export function GroupsTable({
           <TableHead className="px-4 py-4">Chat ID</TableHead>
           <TableHead className="px-4 py-4">Tipe</TableHead>
           <TableHead className="px-4 py-4">Status</TableHead>
-          <TableHead className="px-6 py-4 text-right">Terhubung</TableHead>
+          <TableHead className="px-6 py-4 text-right">Tindakan</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -313,11 +315,14 @@ export function GroupsTable({
                   {item.isActive ? 'Aktif' : 'Nonaktif'}
                 </Badge>
               </TableCell>
-              <TableCell
-                data-label="Terhubung"
-                className="px-6 py-4 text-right text-xs text-muted-foreground"
-              >
-                {new Date(item.addedAt).toLocaleDateString('id-ID')}
+              <TableCell data-label="Tindakan" className="px-6 py-4 text-right">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onToggleGroup(item.chatId)}
+                >
+                  {item.isActive ? 'Nonaktifkan' : 'Aktifkan'}
+                </Button>
               </TableCell>
             </TableRow>
           ))

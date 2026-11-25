@@ -116,6 +116,24 @@ describe('tcbot-hono foundation routes', () => {
     });
   });
 
+  it('POST /api/ledger/rules and /groups/:chatId/toggle return 503 when supabase is unconfigured', async () => {
+    const client = testClient(app, baseEnv);
+    const ruleRes = await client.api.ledger.rules.$post({
+      json: {
+        title: 'Larangan Spam',
+        body: 'Dilarang mengirim tautan spam di semua grup.',
+        categoryTitle: 'Keamanan',
+        isMandatory: true,
+      },
+    });
+    expect(Number(ruleRes.status)).toBe(503);
+
+    const toggleRes = await client.api.ledger.groups[':chatId'].toggle.$post({
+      param: { chatId: '-100123456' },
+    });
+    expect(toggleRes.status).toBe(503);
+  });
+
   it('expireDueModerationActions safely no-ops when supabase is unconfigured', async () => {
     const result = await expireDueModerationActions(baseEnv);
     expect(result).toEqual({ expiredCount: 0 });

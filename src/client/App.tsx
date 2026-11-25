@@ -1,4 +1,4 @@
-import { Loader2, Moon, RefreshCw, Search, Sun } from 'lucide-react';
+import { Loader2, Moon, Plus, RefreshCw, Search, Sun } from 'lucide-react';
 import {
   type MouseEvent,
   useCallback,
@@ -15,6 +15,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -48,6 +49,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { AppSidebar } from './components/AppSidebar';
@@ -67,6 +69,7 @@ import {
 } from './components/SectionTables';
 import { useDynamicPageSize } from './hooks/use-dynamic-page-size';
 import { api } from './lib/api';
+import { initTelegramMiniApp, triggerHaptic } from './lib/telegram-webapp';
 import type { CaseStatus, LedgerCase, LedgerSection } from './types';
 
 const SECTION_TITLES: Record<LedgerSection, string> = {
@@ -112,8 +115,21 @@ export function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [ruleDialogOpen, setRuleDialogOpen] = useState(false);
+  const [ruleTitle, setRuleTitle] = useState('');
+  const [ruleCategory, setRuleCategory] = useState('Umum');
+  const [ruleBody, setRuleBody] = useState('');
+  const [ruleMandatory, setRuleMandatory] = useState(true);
+  const [savingRule, setSavingRule] = useState(false);
   const tableContainerRef = useRef<HTMLElement | null>(null);
   const dynamicLimit = useDynamicPageSize(tableContainerRef, 8);
+
+  useEffect(() => {
+    const scheme = initTelegramMiniApp();
+    if (scheme === 'dark') {
+      setDarkMode(true);
+    }
+  }, []);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
@@ -275,10 +291,12 @@ export function App() {
               : 'Ban tetap aktif.',
         },
       );
+      triggerHaptic('success');
       if (isMobile) {
         setDrawerOpen(false);
       }
     } catch (err) {
+      triggerHaptic('error');
       toast('Keputusan gagal disimpan', {
         description:
           err instanceof Error ? err.message : 'Terjadi kesalahan server.',
@@ -301,10 +319,12 @@ export function App() {
           row.id === actionId ? { ...row, status: 'revoked' } : row,
         ),
       );
+      triggerHaptic('success');
       toast('Ban dicabut', {
         description: 'Status ban diperbarui dan dicatat ke log audit.',
       });
     } catch (err) {
+      triggerHaptic('error');
       toast('Gagal mencabut ban', {
         description:
           err instanceof Error ? err.message : 'Terjadi kesalahan server.',
@@ -312,7 +332,84 @@ export function App() {
     }
   };
 
+  const handleToggleGroup = async (chatId: number) => {
+    try {
+      const res = await api.api.ledger.groups[':chatId'].toggle.$post({
+        param: { chatId: String(chatId) },
+      });
+      if (!res.ok) {
+        throw new Error('Gagal mengubah status grup');
+      }
+      const data = await res.json();
+      setGroups((prev) =>
+        prev.map((g) =>
+          g.chatId === chatId ? { ...g, isActive: data.group.is_active } : g,
+        ),
+      );
+      triggerHaptic('success');
+      toast(data.group.is_active ? 'Grup diaktifkan' : 'Grup dinonaktifkan', {
+        description: `Status grup #${chatId} diperbarui.`,
+      });
+    } catch (err) {
+      triggerHaptic('error');
+      toast('Gagal mengubah status grup', {
+        description:
+          err instanceof Error ? err.message : 'Terjadi kesalahan server.',
+      });
+    }
+  };
+
+  const handleCreateRule = async () => {
+    if (!ruleTitle.trim() || !ruleBody.trim()) {
+      toast('Lengkapi judul dan isi aturan');
+      return;
+    }
+    setSavingRule(true);
+    try {
+      const res = await api.api.ledger.rules.$post({
+        json: {
+          title: ruleTitle.trim(),
+          body: ruleBody.trim(),
+          categoryTitle: ruleCategory.trim() || 'Umum',
+          isMandatory: ruleMandatory,
+        },
+      });
+      if (!res.ok) {
+        throw new Error('Gagal menambahkan aturan');
+      }
+      const data = await res.json();
+      const createdRule: RuleRow = {
+        id: data.rule.id,
+        ruleKey: data.rule.rule_key,
+        categoryTitle: data.rule.category_title ?? data.rule.category_key,
+        title: data.rule.title,
+        body: data.rule.body,
+        isMandatory: data.rule.is_mandatory,
+        versionNumber: 1,
+        versionStatus: 'published',
+        locale: 'id',
+      };
+      setRules((prev) => [createdRule, ...prev]);
+      setRuleDialogOpen(false);
+      setRuleTitle('');
+      setRuleBody('');
+      triggerHaptic('success');
+      toast('Aturan ditambahkan', {
+        description: `Aturan "${createdRule.title}" disimpan ke versi aktif.`,
+      });
+    } catch (err) {
+      triggerHaptic('error');
+      toast('Gagal menambahkan aturan', {
+        description:
+          err instanceof Error ? err.message : 'Terjadi kesalahan server.',
+      });
+    } finally {
+      setSavingRule(false);
+    }
+  };
+
   const handleToggleTheme = (event: MouseEvent<HTMLButtonElement>) => {
+    triggerHaptic('impact');
     const nextDark = !darkMode;
     const reducedMotion = window.matchMedia(
       '(prefers-reduced-motion: reduce)',
@@ -380,6 +477,19 @@ export function App() {
               </div>
 
               <div className="flex items-center gap-2">
+                {activeSection === 'rules' && (
+                  <Button
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => {
+                      triggerHaptic('impact');
+                      setRuleDialogOpen(true);
+                    }}
+                  >
+                    <Plus className="size-4" />
+                    Tambah aturan
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -619,7 +729,11 @@ export function App() {
                       <WarnsTable items={warns} loading={loadingSection} />
                     )}
                     {activeSection === 'groups' && (
-                      <GroupsTable items={groups} loading={loadingSection} />
+                      <GroupsTable
+                        items={groups}
+                        loading={loadingSection}
+                        onToggleGroup={(id) => void handleToggleGroup(id)}
+                      />
                     )}
                     {activeSection === 'rules' && (
                       <RulesTable items={rules} loading={loadingSection} />
@@ -672,6 +786,86 @@ export function App() {
                 Mengambil data terbaru dari Supabase...
               </DialogDescription>
             </DialogHeader>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={ruleDialogOpen} onOpenChange={setRuleDialogOpen}>
+          <DialogContent className="max-w-md p-6">
+            <DialogHeader className="gap-1.5">
+              <DialogTitle>Tambah aturan komunitas</DialogTitle>
+              <DialogDescription>
+                Tambahkan butir aturan baru ke versi aturan aktif.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-4 py-2">
+              <div className="flex flex-col gap-1.5">
+                <label
+                  htmlFor="rule-category"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Kategori
+                </label>
+                <Input
+                  id="rule-category"
+                  value={ruleCategory}
+                  onChange={(e) => setRuleCategory(e.target.value)}
+                  placeholder="Misal: Umum"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label
+                  htmlFor="rule-title"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Judul aturan
+                </label>
+                <Input
+                  id="rule-title"
+                  value={ruleTitle}
+                  onChange={(e) => setRuleTitle(e.target.value)}
+                  placeholder="Misal: Dilarang spam atau promosi berulang"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label
+                  htmlFor="rule-body"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Penjelasan lengkap
+                </label>
+                <Textarea
+                  id="rule-body"
+                  rows={3}
+                  value={ruleBody}
+                  onChange={(e) => setRuleBody(e.target.value)}
+                  placeholder="Jelaskan batasan dan konsekuensi pelanggaran..."
+                />
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={ruleMandatory}
+                  onChange={(e) => setRuleMandatory(e.target.checked)}
+                  className="size-4 rounded border-border accent-primary"
+                />
+                Wajib dipatuhi (mandatory)
+              </label>
+            </div>
+            <DialogFooter className="mt-2">
+              <Button
+                variant="outline"
+                onClick={() => setRuleDialogOpen(false)}
+                disabled={savingRule}
+              >
+                Batal
+              </Button>
+              <Button
+                onClick={() => void handleCreateRule()}
+                disabled={savingRule}
+              >
+                {savingRule ? 'Menyimpan...' : 'Simpan aturan'}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 
