@@ -11,7 +11,9 @@
     "format": "biome format --write .",
     "check": "biome check .",
     "check:fix": "biome check --write .",
-    "test": "bun test"
+    "test": "bun test",
+    "seed:mock": "bun --env-file=.dev.vars run scripts/seed-mock.ts",
+    "clear:mock": "bun --env-file=.dev.vars run scripts/clear-mock.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
