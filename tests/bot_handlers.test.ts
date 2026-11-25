@@ -547,4 +547,24 @@ describe('Telegram Bot MVP end-to-end command handlers', () => {
     expect(pingRows.at(-1)?.[0]?.callback_data).toBe('nav:start');
     expect(pingRows.at(-1)?.at(-1)?.callback_data).toBe('nav:close');
   });
+
+  it('registers valid Telegram slash command suggestions via syncBotCommands', async () => {
+    const { syncBotCommands, getCommandSyncTargets } = await import(
+      '../src/bot/commands'
+    );
+    const { bot, calls } = createHarness();
+    const syncedCount = await syncBotCommands(bot);
+    const targets = getCommandSyncTargets();
+    expect(syncedCount).toBe(targets.length);
+
+    const setCalls = calls.filter((c) => c.method === 'setMyCommands');
+    expect(setCalls).toHaveLength(targets.length);
+    for (const target of targets) {
+      for (const cmd of target.commands) {
+        expect(cmd.command).toMatch(/^[a-z0-9_]{1,32}$/);
+        expect(cmd.description.length).toBeGreaterThanOrEqual(3);
+        expect(cmd.description.length).toBeLessThanOrEqual(256);
+      }
+    }
+  });
 });
