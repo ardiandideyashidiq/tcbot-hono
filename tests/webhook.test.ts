@@ -161,10 +161,28 @@ describe('POST /webhook/telegram end-to-end reliability', () => {
 
     expect(res.status).toBe(200);
     const sendCall = calls.find((c) => c.method === 'sendMessage');
-    expect(sendCall).toBeDefined();
     expect(String(sendCall?.body.text)).toContain('Cloudflare Workers');
     expect(sendCall?.body.entities).toBeDefined();
     expect(sendCall?.body.reply_markup).toBeDefined();
+
+    // Second request in the same isolate reuses memoized bot/botInfo (no extra getMe)
+    const callsBeforeSecond = calls.length;
+    const secondRes = await app.request(
+      '/webhook/telegram',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Telegram-Bot-Api-Secret-Token': 'local_webhook_secret',
+        },
+        body: JSON.stringify(makeStartUpdate(103)),
+      },
+      webhookEnv,
+    );
+    expect(secondRes.status).toBe(200);
+    const secondWaveCalls = calls.slice(callsBeforeSecond);
+    expect(secondWaveCalls.some((c) => c.method === 'getMe')).toBe(false);
+    expect(secondWaveCalls.some((c) => c.method === 'sendMessage')).toBe(true);
   });
 
   it('processes callback_query update via webhook and answers + edits message', async () => {

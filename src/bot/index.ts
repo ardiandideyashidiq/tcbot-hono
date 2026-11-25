@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { autoRetry } from '@grammyjs/auto-retry';
 import { Bot } from 'grammy';
 import { hasSupabaseConfig } from '../lib/env';
@@ -16,6 +17,32 @@ import {
   upsertTelegramUser,
 } from './db';
 
+export interface WaitUntilContext {
+  waitUntil(promise: Promise<unknown>): void;
+}
+
+const executionCtxStorage = new AsyncLocalStorage<WaitUntilContext>();
+
+export function runWithExecutionContext<T>(
+  execCtx: WaitUntilContext | undefined,
+  fn: () => T,
+): T {
+  if (!execCtx) {
+    return fn();
+  }
+  return executionCtxStorage.run(execCtx, fn);
+}
+
+function scheduleBackgroundTask(promise: Promise<unknown>): void {
+  const execCtx = executionCtxStorage.getStore();
+  const safePromise = promise.catch((err) => {
+    console.error('Bot background task error:', err);
+  });
+  if (execCtx) {
+    execCtx.waitUntil(safePromise);
+  }
+}
+
 export function createBot(env: CloudflareBindings): Bot<BotContext> {
   const bot = new Bot<BotContext>(env.TELEGRAM_BOT_TOKEN, {
     client: {
@@ -26,20 +53,29 @@ export function createBot(env: CloudflareBindings): Bot<BotContext> {
 
   bot.api.config.use(autoRetry());
 
+  const envOwnerId = Number(env.OWNER_ID);
+  const hasOwnerId = Number.isFinite(envOwnerId) && envOwnerId > 0;
+
   bot.use(async (ctx, next) => {
     const supabase = hasSupabaseConfig(env) ? createSupabaseAdmin(env) : null;
     ctx.appEnv = env;
     ctx.supabase = supabase;
 
     if (supabase) {
-      await Promise.allSettled([
-        ctx.from ? upsertTelegramUser(supabase, ctx.from) : Promise.resolve(),
-        ctx.chat ? upsertTelegramChat(supabase, ctx.chat) : Promise.resolve(),
-      ]);
+      const bookkeeping: Promise<unknown>[] = [];
       if (ctx.from) {
-        await ensureOwnerAssignment(supabase, ctx.from.id, env.OWNER_ID).catch(
-          () => {},
+        bookkeeping.push(upsertTelegramUser(supabase, ctx.from));
+      }
+      if (ctx.chat) {
+        bookkeeping.push(upsertTelegramChat(supabase, ctx.chat));
+      }
+      if (hasOwnerId && ctx.from?.id === envOwnerId) {
+        bookkeeping.push(
+          ensureOwnerAssignment(supabase, ctx.from.id, env.OWNER_ID),
         );
+      }
+      if (bookkeeping.length > 0) {
+        scheduleBackgroundTask(Promise.allSettled(bookkeeping));
       }
     }
 

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test';
 import { app } from '../src/index';
+import { createSupabaseAdmin } from '../src/lib/supabase';
 
 const configuredEnv = {
   COMMUNITY_NAME: 'Bot',
@@ -335,5 +336,11 @@ describe('Ledger API routes with Supabase stub', () => {
     expect(db.ruleSets).toHaveLength(1);
     expect(db.ruleVersions).toHaveLength(1);
     expect(db.ruleItems).toHaveLength(1);
+  });
+
+  it('memoizes Supabase client per isolate for identical credentials', () => {
+    const first = createSupabaseAdmin(configuredEnv);
+    const second = createSupabaseAdmin(configuredEnv);
+    expect(first).toBe(second);
   });
 });

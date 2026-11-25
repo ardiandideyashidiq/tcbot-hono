@@ -1,6 +1,6 @@
 import { Composer } from 'grammy';
 import type { BotContext } from '../context';
-import { getUserRole, isAdminOrOwner } from '../db';
+import { getUserRole, isAdminOrOwner, setCachedUserLocale } from '../db';
 import { t } from '../i18n';
 import {
   buildHelpCard,
@@ -123,6 +123,7 @@ generalComposer.callbackQuery(/^lang:set:(en-US|id-ID)$/, async (ctx) => {
   });
 
   if (ctx.supabase && ctx.from) {
+    setCachedUserLocale(ctx.from.id, nextLocale);
     await ctx.supabase.from('user_settings').upsert(
       {
         user_id: ctx.from.id,

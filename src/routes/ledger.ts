@@ -143,7 +143,7 @@ const ledgerApp = new Hono<AppEnv>()
       .from('moderation_appeals')
       .select(
         'id, action_id, appellant_user_id, appeal_text, status, submitted_at, resolved_at, reviewed_by_user_id, decision_note',
-        { count: 'exact' },
+        { count: 'estimated' },
       )
       .order('submitted_at', { ascending: false });
 
@@ -160,19 +160,20 @@ const ledgerApp = new Hono<AppEnv>()
     }
 
     const actionIds = (appeals ?? []).map((a) => a.action_id);
-    const { data: actions } =
+    const [{ data: actions }, userMap] = await Promise.all([
       actionIds.length > 0
-        ? await supabase
+        ? supabase
             .from('moderation_actions')
             .select('id, external_ref, chat_id, origin_chat_id, reason')
             .in('id', actionIds)
-        : { data: [] };
+        : Promise.resolve({ data: [] }),
+      fetchUsersMap(
+        supabase,
+        (appeals ?? []).map((a) => a.appellant_user_id),
+      ),
+    ]);
 
     const actionMap = new Map((actions ?? []).map((act) => [act.id, act]));
-    const userMap = await fetchUsersMap(
-      supabase,
-      (appeals ?? []).map((a) => a.appellant_user_id),
-    );
     const chatMap = await fetchChatsMap(
       supabase,
       (actions ?? []).map((a) => a.origin_chat_id ?? a.chat_id),
@@ -297,7 +298,7 @@ const ledgerApp = new Hono<AppEnv>()
       .from('moderation_actions')
       .select(
         'id, external_ref, target_user_id, actor_user_id, chat_id, origin_chat_id, reason, status, created_at, expires_at',
-        { count: 'exact' },
+        { count: 'estimated' },
       )
       .eq('action_type', 'ban')
       .order('created_at', { ascending: false })
@@ -307,14 +308,16 @@ const ledgerApp = new Hono<AppEnv>()
       throw new HTTPException(500, { message: error.message });
     }
 
-    const userMap = await fetchUsersMap(
-      supabase,
-      (bans ?? []).map((b) => b.target_user_id),
-    );
-    const chatMap = await fetchChatsMap(
-      supabase,
-      (bans ?? []).map((b) => b.origin_chat_id ?? b.chat_id),
-    );
+    const [userMap, chatMap] = await Promise.all([
+      fetchUsersMap(
+        supabase,
+        (bans ?? []).map((b) => b.target_user_id),
+      ),
+      fetchChatsMap(
+        supabase,
+        (bans ?? []).map((b) => b.origin_chat_id ?? b.chat_id),
+      ),
+    ]);
 
     const items = (bans ?? []).map((ban) => {
       const user = userMap.get(ban.target_user_id);
@@ -414,7 +417,7 @@ const ledgerApp = new Hono<AppEnv>()
       .from('moderation_actions')
       .select(
         'id, external_ref, target_user_id, chat_id, reason, status, created_at, expires_at',
-        { count: 'exact' },
+        { count: 'estimated' },
       )
       .eq('action_type', 'warn')
       .order('created_at', { ascending: false })
@@ -424,14 +427,16 @@ const ledgerApp = new Hono<AppEnv>()
       throw new HTTPException(500, { message: error.message });
     }
 
-    const userMap = await fetchUsersMap(
-      supabase,
-      (warns ?? []).map((w) => w.target_user_id),
-    );
-    const chatMap = await fetchChatsMap(
-      supabase,
-      (warns ?? []).map((w) => w.chat_id),
-    );
+    const [userMap, chatMap] = await Promise.all([
+      fetchUsersMap(
+        supabase,
+        (warns ?? []).map((w) => w.target_user_id),
+      ),
+      fetchChatsMap(
+        supabase,
+        (warns ?? []).map((w) => w.chat_id),
+      ),
+    ]);
 
     const items = (warns ?? []).map((warn) => {
       const user = userMap.get(warn.target_user_id);
@@ -477,7 +482,7 @@ const ledgerApp = new Hono<AppEnv>()
     } = await supabase
       .from('connected_chats')
       .select('chat_id, added_by_user_id, added_at, is_active', {
-        count: 'exact',
+        count: 'estimated',
       })
       .order('added_at', { ascending: false })
       .range(from, to);
@@ -666,7 +671,7 @@ const ledgerApp = new Hono<AppEnv>()
       .from('rule_items')
       .select(
         'id, rule_set_version_id, rule_key, category_key, category_title, title, body, sort_order, is_mandatory',
-        { count: 'exact' },
+        { count: 'estimated' },
       )
       .in('rule_set_version_id', versionIds)
       .order('sort_order', { ascending: true })
@@ -719,7 +724,7 @@ const ledgerApp = new Hono<AppEnv>()
       .select(
         'id, user_id, role_key, assigned_by_user_id, assigned_at, status',
         {
-          count: 'exact',
+          count: 'estimated',
         },
       )
       .eq('status', 'active')

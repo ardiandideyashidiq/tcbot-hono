@@ -145,20 +145,46 @@ export function isAdminOrOwner(role: RoleKey | null): boolean {
   return role === 'owner' || role === 'admin';
 }
 
+const LOCALE_CACHE_TTL_MS = 60_000;
+const LOCALE_CACHE_MAX_SIZE = 4096;
+const localeCache = new Map<number, { locale: Locale; expiresAt: number }>();
+
+export function setCachedUserLocale(userId: number, locale: Locale): void {
+  if (localeCache.size >= LOCALE_CACHE_MAX_SIZE) {
+    const oldestKey = localeCache.keys().next().value;
+    if (oldestKey !== undefined) {
+      localeCache.delete(oldestKey);
+    }
+  }
+  localeCache.set(userId, {
+    locale,
+    expiresAt: Date.now() + LOCALE_CACHE_TTL_MS,
+  });
+}
+
 export async function resolveUserLocale(
   supabase: TypedSupabaseClient | null,
   userId: number | undefined,
   fallbackLanguageCode?: string,
 ): Promise<Locale> {
   if (supabase && userId) {
+    const cached = localeCache.get(userId);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.locale;
+    }
     const { data } = await supabase
       .from('user_settings')
       .select('locale')
       .eq('user_id', userId)
       .maybeSingle();
     if (data?.locale) {
-      return normalizeLocale(data.locale);
+      const normalized = normalizeLocale(data.locale);
+      setCachedUserLocale(userId, normalized);
+      return normalized;
     }
+    const fallback = normalizeLocale(fallbackLanguageCode);
+    setCachedUserLocale(userId, fallback);
+    return fallback;
   }
   return normalizeLocale(fallbackLanguageCode);
 }

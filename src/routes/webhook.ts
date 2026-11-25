@@ -1,8 +1,40 @@
 import { webhookCallback } from 'grammy';
-import { Hono } from 'hono';
+import { type Context, Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
-import { createBot } from '../bot';
+import {
+  createBot,
+  runWithExecutionContext,
+  type WaitUntilContext,
+} from '../bot';
 import type { AppEnv } from '../lib/env';
+
+const MAX_CACHED_WEBHOOK_HANDLERS = 8;
+const webhookHandlerCache = new Map<
+  string,
+  (c: Context<AppEnv>) => Promise<Response>
+>();
+
+function getWebhookHandler(env: CloudflareBindings, secretToken: string) {
+  const cacheKey = `${env.TELEGRAM_BOT_TOKEN}\0${secretToken}\0${env.SUPABASE_URL ?? ''}\0${env.OWNER_ID ?? ''}`;
+  const cached = webhookHandlerCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const bot = createBot(env);
+  const handler = webhookCallback(bot, 'hono', {
+    secretToken,
+  }) as unknown as (c: Context<AppEnv>) => Promise<Response>;
+
+  if (webhookHandlerCache.size >= MAX_CACHED_WEBHOOK_HANDLERS) {
+    const oldestKey = webhookHandlerCache.keys().next().value;
+    if (oldestKey !== undefined) {
+      webhookHandlerCache.delete(oldestKey);
+    }
+  }
+  webhookHandlerCache.set(cacheKey, handler);
+  return handler;
+}
 
 function constantTimeEqual(a: string, b: string): boolean {
   const encoder = new TextEncoder();
@@ -42,12 +74,15 @@ const webhookApp = new Hono<AppEnv>()
       return c.text('Unauthorized', 401);
     }
 
-    const bot = createBot(c.env);
-    const handleUpdate = webhookCallback(bot, 'hono', {
-      secretToken,
-    });
+    const handleUpdate = getWebhookHandler(c.env, secretToken);
+    let execCtx: WaitUntilContext | undefined;
+    try {
+      execCtx = c.executionCtx;
+    } catch {
+      execCtx = undefined;
+    }
 
-    return handleUpdate(c);
+    return runWithExecutionContext(execCtx, () => handleUpdate(c));
   });
 
 export default webhookApp;
