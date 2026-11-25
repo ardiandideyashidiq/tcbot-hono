@@ -4,7 +4,6 @@ import {
   Lock,
   Moon,
   RefreshCw,
-  ShieldCheck,
   Sun,
   Users,
 } from 'lucide-react';
@@ -53,53 +52,41 @@ export function PublicShell({
       />
 
       <header className="sticky top-0 z-30 border-b border-border/80 bg-background/85 backdrop-blur-md">
-        <div className="mx-auto flex w-full max-w-[1480px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-10">
-          <div className="flex items-center gap-6">
-            <button
-              type="button"
-              onClick={() => onNavigate('/')}
-              className="flex items-center gap-3 text-left"
-            >
-              <div className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-                <ShieldCheck className="size-4" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-bold tracking-tight">
-                  {communityName}
-                </span>
-                <span className="hidden text-xs text-muted-foreground sm:block">
-                  Portal Transparansi & Tata Tertib
-                </span>
-              </div>
-            </button>
+        <div className="mx-auto flex w-full max-w-[1480px] items-center justify-between gap-3 px-4 py-3 sm:px-6 md:grid md:grid-cols-[1fr_auto_1fr] lg:px-10">
+          <button
+            type="button"
+            onClick={() => onNavigate('/')}
+            className="justify-self-start text-left text-base font-bold tracking-tight text-foreground transition-opacity hover:opacity-80"
+          >
+            {communityName}
+          </button>
 
-            <nav
-              aria-label="Navigasi publik"
-              className="hidden items-center gap-1 rounded-xl border border-border/70 bg-muted/40 p-1 md:flex"
-            >
-              {NAV_LINKS.map((link) => {
-                const Icon = link.icon;
-                const active = currentRoute === link.route;
-                return (
-                  <button
-                    key={link.route}
-                    type="button"
-                    onClick={() => onNavigate(link.route)}
-                    className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                      active
-                        ? 'bg-background text-foreground shadow-xs'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    <Icon className="size-3.5" />
-                    {link.label}
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
+          <nav
+            aria-label="Navigasi publik"
+            className="hidden items-center gap-1 justify-self-center rounded-xl border border-border/70 bg-muted/40 p-1 md:flex"
+          >
+            {NAV_LINKS.map((link) => {
+              const Icon = link.icon;
+              const active = currentRoute === link.route;
+              return (
+                <button
+                  key={link.route}
+                  type="button"
+                  onClick={() => onNavigate(link.route)}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                    active
+                      ? 'bg-background text-foreground shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Icon className="size-3.5" />
+                  {link.label}
+                </button>
+              );
+            })}
+          </nav>
 
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1.5 justify-self-end sm:gap-2">
             <Button
               variant="ghost"
               size="icon"
