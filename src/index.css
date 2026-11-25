@@ -347,6 +347,26 @@
 .public-scope .docket-scroll {
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule-line) transparent;
+}
+
+.public-scope .docket-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.public-scope .docket-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.public-scope .docket-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--rule-line);
+  border: 1px solid transparent;
+}
+
+.public-scope .docket-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted-foreground);
 }
 
 @media (prefers-reduced-motion: no-preference) {
