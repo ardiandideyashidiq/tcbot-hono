@@ -17,10 +17,8 @@ const supabase = createClient<Database>(supabaseUrl, supabaseSecretKey, {
   },
 });
 
-const MOCK_USER_IDS = [
-  9900000001, 9900000002, 9900000003, 9900000004, 9900000005, 9900000006,
-];
-const MOCK_CHAT_IDS = [-1009900000001, -1009900000002, -1009900000003];
+const MOCK_USER_IDS = Array.from({ length: 120 }, (_, i) => 9900000001 + i);
+const MOCK_CHAT_IDS = Array.from({ length: 12 }, (_, i) => -1009900000001 - i);
 const MOCK_RULE_SET_KEY = 'mock_community_rules';
 
 async function clearMockData() {
@@ -45,7 +43,7 @@ async function clearMockData() {
   await supabase.from('telegram_chats').delete().in('chat_id', MOCK_CHAT_IDS);
   await supabase.from('telegram_users').delete().in('user_id', MOCK_USER_IDS);
 
-  console.log('Mock data cleared cleanly.');
+  console.log('All mock data cleared cleanly.');
 }
 
 clearMockData().catch((err) => {
