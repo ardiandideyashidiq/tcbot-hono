@@ -155,8 +155,14 @@ async function buildRulesEditorPanel(ctx: BotContext) {
   const keyboard = new InlineKeyboard()
     .text(isId ? '➕ Tambah Aturan' : '➕ Add Rule', 'rules_editor:add')
     .text(isId ? '👁️ Pratinjau' : '👁️ Preview', 'nav:rules')
-    .row()
-    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
+    .row();
+
+  for (const item of items.slice(0, 4)) {
+    keyboard
+      .text(`🗑️ ${item.title.slice(0, 22)}`, `rules_editor:del:${item.id}`)
+      .row();
+  }
+  keyboard.text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
 
   return { formatted, keyboard };
 }
@@ -338,6 +344,77 @@ rulesComposer.on('message:text', async (ctx, next) => {
       ),
     },
   );
+});
+
+rulesComposer.callbackQuery(/^rules_editor:del:(\d+)$/, async (ctx) => {
+  const itemId = Number(ctx.match[1]);
+  const isId = ctx.locale === 'id-ID';
+  const role = await getUserRole(
+    ctx.supabase,
+    ctx.from.id,
+    ctx.appEnv.OWNER_ID,
+  );
+  if (!isAdminOrOwner(role) || !ctx.supabase) {
+    await ctx.answerCallbackQuery({
+      text: t(ctx.locale, 'err.admin_only'),
+      show_alert: true,
+    });
+    return;
+  }
+
+  await ctx.supabase.from('rule_items').delete().eq('id', itemId);
+  await recordAuditEvent(ctx.supabase, {
+    eventKey: 'rules.item_deleted',
+    entityType: 'rule_item',
+    entityId: String(itemId),
+    actorUserId: ctx.from.id,
+  });
+
+  await ctx.answerCallbackQuery({
+    text: isId ? 'Aturan dihapus.' : 'Rule deleted.',
+  });
+  const { formatted, keyboard } = await buildRulesEditorPanel(ctx);
+  await ctx
+    .editMessageText(formatted.text, {
+      entities: formatted.entities,
+      reply_markup: keyboard,
+    })
+    .catch(() => {});
+});
+
+// Supergroup upgrade migration handler
+rulesComposer.on('message:migrate_to_chat_id', async (ctx) => {
+  if (!ctx.supabase || !ctx.chat) return;
+  const oldChatId = ctx.chat.id;
+  const newChatId = ctx.message.migrate_to_chat_id;
+  const { data: oldConn } = await ctx.supabase
+    .from('connected_chats')
+    .select('added_by_user_id, is_active')
+    .eq('chat_id', oldChatId)
+    .maybeSingle();
+
+  if (oldConn?.is_active) {
+    await ctx.supabase.from('telegram_chats').upsert(
+      {
+        chat_id: newChatId,
+        chat_type: 'supergroup',
+        title: 'title' in ctx.chat ? (ctx.chat.title ?? null) : null,
+      },
+      { onConflict: 'chat_id' },
+    );
+    await ctx.supabase.from('connected_chats').upsert(
+      {
+        chat_id: newChatId,
+        added_by_user_id: oldConn.added_by_user_id,
+        is_active: true,
+      },
+      { onConflict: 'chat_id' },
+    );
+    await ctx.supabase
+      .from('connected_chats')
+      .update({ is_active: false })
+      .eq('chat_id', oldChatId);
+  }
 });
 
 // Join request enforcement (auto-decline federation-banned users)

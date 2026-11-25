@@ -203,6 +203,16 @@ export interface AuditEventInput {
   payload?: Record<string, unknown>;
 }
 
+export async function notifyAuditChannel(
+  api: { sendMessage: (chatId: number, text: string) => Promise<unknown> },
+  env: Pick<CloudflareBindings, 'LOGS'>,
+  text: string,
+): Promise<void> {
+  const logsChatId = Number(env.LOGS || '0');
+  if (!Number.isFinite(logsChatId) || logsChatId === 0) return;
+  await api.sendMessage(logsChatId, text).catch(() => {});
+}
+
 export async function recordAuditEvent(
   supabase: TypedSupabaseClient | null,
   input: AuditEventInput,

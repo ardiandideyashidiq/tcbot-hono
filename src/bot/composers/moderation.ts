@@ -929,12 +929,38 @@ onCommand(moderationComposer, ['tcwarn', 'tcw'], async (ctx) => {
       payload: { reason, warnCount, warnLimit },
     });
 
-    if (warnCount >= warnLimit) {
+    const fedWarnLimit = Math.max(0, Number(ctx.appEnv.FED_WARN_LIMIT) || 0);
+    let fedWarnCount = 0;
+    if (fedWarnLimit > 0) {
+      let fedQuery = ctx.supabase
+        .from('moderation_actions')
+        .select('id', { count: 'exact', head: true })
+        .eq('target_user_id', target.userId)
+        .eq('action_type', 'warn')
+        .eq('status', 'completed');
+      if (warnExpiryDays > 0) {
+        const cutoff = new Date(
+          Date.now() - warnExpiryDays * 24 * 60 * 60 * 1000,
+        ).toISOString();
+        fedQuery = fedQuery.gte('created_at', cutoff);
+      }
+      const { count: fCount } = await fedQuery;
+      fedWarnCount = fCount ?? 0;
+    }
+
+    if (
+      warnCount >= warnLimit ||
+      (fedWarnLimit > 0 && fedWarnCount >= fedWarnLimit)
+    ) {
+      const triggeredLimit =
+        fedWarnLimit > 0 && fedWarnCount >= fedWarnLimit
+          ? `${fedWarnCount}/${fedWarnLimit} (fed)`
+          : `${warnCount}/${warnLimit}`;
       const autoBan = await executeBan(ctx, {
         targetId: target.userId,
         targetLabel: target.label,
         durationSeconds: null,
-        reason: `Auto-ban: warn threshold (${warnCount}/${warnLimit})`,
+        reason: `Auto-ban: warn threshold (${triggeredLimit})`,
         chatId,
         actorId: actorId || null,
       });
@@ -948,7 +974,7 @@ onCommand(moderationComposer, ['tcwarn', 'tcw'], async (ctx) => {
         targetLabel: target.label,
         targetId: target.userId,
         count: autoBan.affectedGroups,
-        reason: `Warn limit (${warnCount}/${warnLimit})`,
+        reason: `Warn limit (${triggeredLimit})`,
         ref: autoBan.ref,
         actionType: 'ban',
         actionId: autoBan.actionId,

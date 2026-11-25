@@ -1,7 +1,12 @@
 import { b, code, fmt } from '@grammyjs/parse-mode';
 import { Composer, InlineKeyboard } from 'grammy';
 import type { BotContext } from '../context';
-import { getUserRole, isAdminOrOwner, recordAuditEvent } from '../db';
+import {
+  getUserRole,
+  isAdminOrOwner,
+  notifyAuditChannel,
+  recordAuditEvent,
+} from '../db';
 import { t } from '../i18n';
 import { getCommandArgs, onCommand } from '../prefixes';
 import { buildGroupsCard } from '../ui';
@@ -136,6 +141,34 @@ onCommand(groupsComposer, ['tcconnect', 'tccon'], async (ctx) => {
       actorUserId: actorId,
       chatId: ctx.chat.id,
     });
+
+    // Bounded replay of active federation bans into the newly connected group
+    const { data: activeBans } = await ctx.supabase
+      .from('moderation_actions')
+      .select('target_user_id, expires_at')
+      .eq('action_type', 'ban')
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (activeBans && activeBans.length > 0) {
+      const targetChatId = ctx.chat.id;
+      await Promise.allSettled(
+        activeBans.map((bRow) =>
+          ctx.api.banChatMember(targetChatId, bRow.target_user_id, {
+            until_date: bRow.expires_at
+              ? Math.floor(new Date(bRow.expires_at).getTime() / 1000)
+              : undefined,
+          }),
+        ),
+      );
+    }
+
+    await notifyAuditChannel(
+      ctx.api,
+      ctx.appEnv,
+      `🔗 Group connected: ${ctx.chat.id} by ${actorId} (replayed ${activeBans?.length ?? 0} active ban(s))`,
+    );
   }
 
   const chatId = ctx.chat.id;

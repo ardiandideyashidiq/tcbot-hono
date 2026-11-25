@@ -102,8 +102,25 @@ export function createBot(env: CloudflareBindings): Bot<BotContext> {
   bot.use(statsComposer);
   bot.use(moderationComposer);
 
-  bot.catch((err) => {
+  bot.catch(async (err) => {
     console.error('Bot update error:', err.error);
+    const errChatId = Number(env.LOGS_ERRORS || '0');
+    if (Number.isFinite(errChatId) && errChatId !== 0) {
+      const raw =
+        err.error instanceof Error
+          ? `${err.error.name}: ${err.error.message}`
+          : String(err.error);
+      // Scrub potential bot token or secret strings before sending to Telegram
+      const scrubbed = raw
+        .replace(/\d{6,}:[A-Za-z0-9_-]{20,}/g, '[REDACTED_TOKEN]')
+        .slice(0, 800);
+      await bot.api
+        .sendMessage(
+          errChatId,
+          `⚠️ Bot Error (update ${err.ctx?.update?.update_id ?? '?'})\n${scrubbed}`,
+        )
+        .catch(() => {});
+    }
   });
 
   return bot;
