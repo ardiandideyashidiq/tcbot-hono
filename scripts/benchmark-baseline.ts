@@ -94,7 +94,7 @@ const benchEnv = {
   WARN_EXPIRY_DAYS: '0',
   LOG_LEVEL: 'INFO',
   TELEGRAM_BOT_TOKEN: '123456:BENCH_TOKEN',
-  TELEGRAM_WEBHOOK_SECRET: 'bench_secret',
+  TELEGRAM_WEBHOOK_SECRET: 'bench_webhook_secret_key',
   SUPABASE_URL: 'https://bench.supabase.co',
   SUPABASE_SECRET_KEY: 'bench-service-role-key',
   SUPABASE_PUBLISHABLE_KEY: '',
@@ -108,6 +108,9 @@ const benchEnv = {
   APPEALS: '',
   INFRA_CHAT_IDS: '',
   SENTRY_DSN: '',
+  ADMIN_USERNAME: 'admin',
+  ADMIN_PASSWORD: 'bench_admin_password',
+  ADMIN_SESSION_SECRET: 'bench_session_secret_key_32chars',
 } as unknown as CloudflareBindings;
 
 function installInProcessStubs() {
@@ -184,7 +187,7 @@ async function run() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Telegram-Bot-Api-Secret-Token': 'bench_secret',
+          'X-Telegram-Bot-Api-Secret-Token': 'bench_webhook_secret_key',
         },
         body: JSON.stringify(warmUpdate),
       },
@@ -242,7 +245,7 @@ async function run() {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'X-Telegram-Bot-Api-Secret-Token': 'bench_secret',
+                'X-Telegram-Bot-Api-Secret-Token': 'bench_webhook_secret_key',
               },
               body: JSON.stringify(update),
             },
@@ -255,7 +258,7 @@ async function run() {
 
     const adminToken = await signAdminSession(
       'admin',
-      getSessionSecret(benchEnv) ?? 'bench_fallback_secret_value',
+      getSessionSecret(benchEnv) ?? '',
     );
     const adminCookie = `tcbot_admin_session=${encodeURIComponent(adminToken)}`;
 
