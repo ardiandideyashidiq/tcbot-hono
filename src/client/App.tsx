@@ -323,7 +323,7 @@ export function App() {
   return (
     <TooltipProvider>
       <SidebarProvider>
-        <div className="flex min-h-screen w-full bg-background text-foreground">
+        <div className="flex min-h-dvh w-full bg-background text-foreground">
           <AppSidebar
             activeSection={activeSection}
             onSelectSection={setActiveSection}
@@ -331,7 +331,7 @@ export function App() {
           />
 
           <SidebarInset className="flex min-w-0 flex-1 flex-col">
-            <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-card px-6">
+            <header className="flex min-h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-card px-4 pt-[env(safe-area-inset-top,0px)] sm:px-6">
               <div className="flex items-center gap-3">
                 <SidebarTrigger />
                 <Separator orientation="vertical" className="h-5" />
@@ -367,7 +367,7 @@ export function App() {
               </div>
             </header>
 
-            <div className="flex flex-1 flex-col gap-6 p-6">
+            <div className="flex flex-1 flex-col gap-5 p-4 pb-[max(1.5rem,env(safe-area-inset-bottom,0px))] sm:gap-6 sm:p-6">
               {activeSection === 'appeals' ? (
                 <>
                   {pendingCount > 0 && (
@@ -409,7 +409,7 @@ export function App() {
                             value={tierFilter}
                             onValueChange={(val) => setTierFilter(val ?? 'all')}
                           >
-                            <SelectTrigger className="w-40">
+                            <SelectTrigger className="w-full sm:w-44">
                               <SelectValue placeholder="Semua tingkat" />
                             </SelectTrigger>
                             <SelectContent>
@@ -435,7 +435,10 @@ export function App() {
                         </div>
                       </div>
 
-                      <div className="flex-1 overflow-x-auto">
+                      <section
+                        aria-label="Daftar banding"
+                        className="ledger-table-wrap flex-1 overflow-x-auto"
+                      >
                         <Table>
                           <TableHeader>
                             <TableRow className="hover:bg-transparent">
@@ -477,7 +480,10 @@ export function App() {
                                     onClick={() => handleSelectRow(item)}
                                     className="cursor-pointer"
                                   >
-                                    <TableCell className="px-5 py-4">
+                                    <TableCell
+                                      data-label="Anggota"
+                                      className="px-5 py-4"
+                                    >
                                       <div className="space-y-1">
                                         <p className="font-medium text-foreground">
                                           {item.displayName}
@@ -487,7 +493,10 @@ export function App() {
                                         </p>
                                       </div>
                                     </TableCell>
-                                    <TableCell className="px-4 py-4">
+                                    <TableCell
+                                      data-label="Tingkat"
+                                      className="px-4 py-4"
+                                    >
                                       <Badge
                                         variant={
                                           item.ruleTier === 'Sangat berat' ||
@@ -499,12 +508,18 @@ export function App() {
                                         {item.ruleTier}
                                       </Badge>
                                     </TableCell>
-                                    <TableCell className="px-4 py-4">
+                                    <TableCell
+                                      data-label="Status"
+                                      className="px-4 py-4"
+                                    >
                                       <Badge variant="outline">
                                         {STATUS_LABELS[item.status]}
                                       </Badge>
                                     </TableCell>
-                                    <TableCell className="px-5 py-4 text-right text-xs text-muted-foreground">
+                                    <TableCell
+                                      data-label="Waktu"
+                                      className="px-5 py-4 text-right text-xs text-muted-foreground"
+                                    >
                                       {item.submittedAt}
                                     </TableCell>
                                   </TableRow>
@@ -513,7 +528,7 @@ export function App() {
                             )}
                           </TableBody>
                         </Table>
-                      </div>
+                      </section>
                     </section>
 
                     <aside className="hidden rounded-lg border border-border bg-card lg:col-span-5 lg:block">
@@ -527,7 +542,10 @@ export function App() {
                   </div>
                 </>
               ) : (
-                <section className="overflow-x-auto rounded-lg border border-border bg-card">
+                <section
+                  aria-label={SECTION_TITLES[activeSection]}
+                  className="ledger-table-wrap overflow-x-auto rounded-lg border border-border bg-card"
+                >
                   {activeSection === 'bans' && (
                     <BansTable
                       items={bans}
@@ -554,7 +572,7 @@ export function App() {
         </div>
 
         <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
-          <DrawerContent className="max-h-[88vh]">
+          <DrawerContent className="max-h-[88dvh] pb-[max(1rem,env(safe-area-inset-bottom,0px))]">
             <DrawerHeader className="border-b border-border px-6 py-4 text-left">
               <DrawerTitle>Detail kasus</DrawerTitle>
             </DrawerHeader>

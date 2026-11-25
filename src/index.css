@@ -42,6 +42,7 @@
 }
 
 :root {
+  --target-size: 24px;
   --radius: 0.5rem;
   --background: oklch(0.984 0.003 247.858); /* Canvas Chalk #F8FAFC */
   --foreground: oklch(0.208 0.042 265.755); /* Slate Ink #0F172A */
@@ -102,15 +103,92 @@
   --sidebar-ring: oklch(0.623 0.214 259.815);
 }
 
+@media (pointer: coarse) {
+  :root {
+    --target-size: 44px;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   body {
     @apply bg-background text-foreground antialiased;
+    overflow-wrap: break-word;
   }
   html {
     @apply font-sans;
+    scroll-padding-top: calc(4rem + env(safe-area-inset-top, 0px));
+    scroll-padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  p,
+  li {
+    text-wrap: pretty;
+  }
+  :where(a, code) {
+    overflow-wrap: anywhere;
+  }
+  :where(
+    button,
+    select,
+    textarea,
+    input:not([type="checkbox"], [type="radio"]),
+    [role="button"]
+  ) {
+    min-block-size: var(--target-size);
+  }
+}
+
+.ledger-table-wrap {
+  container-type: inline-size;
+}
+
+@container (width < 560px) {
+  .ledger-table-wrap table,
+  .ledger-table-wrap thead,
+  .ledger-table-wrap tbody,
+  .ledger-table-wrap tr,
+  .ledger-table-wrap th,
+  .ledger-table-wrap td {
+    display: block;
+    width: 100%;
+  }
+
+  .ledger-table-wrap thead {
+    display: none;
+  }
+
+  .ledger-table-wrap tbody tr {
+    padding-block: 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .ledger-table-wrap tbody tr:last-child {
+    border-bottom: none;
+  }
+
+  .ledger-table-wrap tbody td {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.45rem 1.25rem;
+    text-align: right;
+  }
+
+  .ledger-table-wrap tbody td[data-label]::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    text-align: left;
   }
 }
 
@@ -134,6 +212,6 @@
     transition:
       background-color 220ms ease,
       color 220ms ease,
-      border-color 220ms ease !important;
+      border-color 220ms ease;
   }
 }

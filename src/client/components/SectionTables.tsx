@@ -130,7 +130,7 @@ export function BansTable({
         ) : (
           items.map((item) => (
             <TableRow key={item.id}>
-              <TableCell className="px-6 py-4">
+              <TableCell data-label="Pengguna" className="px-6 py-4">
                 <div className="space-y-1">
                   <p className="font-medium text-foreground">
                     {item.displayName}
@@ -140,20 +140,26 @@ export function BansTable({
                   </p>
                 </div>
               </TableCell>
-              <TableCell className="px-4 py-4 text-sm text-muted-foreground">
+              <TableCell
+                data-label="Grup asal"
+                className="px-4 py-4 text-sm text-muted-foreground"
+              >
                 {item.originGroup}
               </TableCell>
-              <TableCell className="max-w-xs px-4 py-4 text-sm text-muted-foreground">
+              <TableCell
+                data-label="Alasan"
+                className="max-w-xs px-4 py-4 text-sm text-muted-foreground"
+              >
                 <p className="line-clamp-2">{item.reason}</p>
               </TableCell>
-              <TableCell className="px-4 py-4">
+              <TableCell data-label="Status" className="px-4 py-4">
                 <Badge
                   variant={item.status === 'active' ? 'destructive' : 'outline'}
                 >
                   {item.status === 'active' ? 'Aktif' : item.status}
                 </Badge>
               </TableCell>
-              <TableCell className="px-6 py-4 text-right">
+              <TableCell data-label="Tindakan" className="px-6 py-4 text-right">
                 {item.status === 'active' ? (
                   <AlertDialog>
                     <AlertDialogTrigger
@@ -219,7 +225,7 @@ export function WarnsTable({
         ) : (
           items.map((item) => (
             <TableRow key={item.id}>
-              <TableCell className="px-6 py-4">
+              <TableCell data-label="Pengguna" className="px-6 py-4">
                 <div className="space-y-1">
                   <p className="font-medium text-foreground">
                     {item.displayName}
@@ -229,16 +235,25 @@ export function WarnsTable({
                   </p>
                 </div>
               </TableCell>
-              <TableCell className="px-4 py-4 text-sm text-muted-foreground">
+              <TableCell
+                data-label="Grup"
+                className="px-4 py-4 text-sm text-muted-foreground"
+              >
                 {item.groupTitle}
               </TableCell>
-              <TableCell className="max-w-xs px-4 py-4 text-sm text-muted-foreground">
+              <TableCell
+                data-label="Alasan"
+                className="max-w-xs px-4 py-4 text-sm text-muted-foreground"
+              >
                 <p className="line-clamp-2">{item.reason}</p>
               </TableCell>
-              <TableCell className="px-4 py-4">
+              <TableCell data-label="Status" className="px-4 py-4">
                 <Badge variant="secondary">{item.status}</Badge>
               </TableCell>
-              <TableCell className="px-6 py-4 text-right text-xs text-muted-foreground">
+              <TableCell
+                data-label="Tanggal"
+                className="px-6 py-4 text-right text-xs text-muted-foreground"
+              >
                 {new Date(item.createdAt).toLocaleDateString('id-ID')}
               </TableCell>
             </TableRow>
@@ -275,21 +290,33 @@ export function GroupsTable({
         ) : (
           items.map((item) => (
             <TableRow key={item.chatId}>
-              <TableCell className="px-6 py-4 font-medium text-foreground">
+              <TableCell
+                data-label="Nama grup"
+                className="px-6 py-4 font-medium text-foreground"
+              >
                 {item.title}
               </TableCell>
-              <TableCell className="px-4 py-4 font-mono text-xs text-muted-foreground">
+              <TableCell
+                data-label="Chat ID"
+                className="px-4 py-4 font-mono text-xs text-muted-foreground"
+              >
                 {item.chatId}
               </TableCell>
-              <TableCell className="px-4 py-4 text-sm text-muted-foreground">
+              <TableCell
+                data-label="Tipe"
+                className="px-4 py-4 text-sm text-muted-foreground"
+              >
                 {item.chatType}
               </TableCell>
-              <TableCell className="px-4 py-4">
+              <TableCell data-label="Status" className="px-4 py-4">
                 <Badge variant={item.isActive ? 'secondary' : 'outline'}>
                   {item.isActive ? 'Aktif' : 'Nonaktif'}
                 </Badge>
               </TableCell>
-              <TableCell className="px-6 py-4 text-right text-xs text-muted-foreground">
+              <TableCell
+                data-label="Terhubung"
+                className="px-6 py-4 text-right text-xs text-muted-foreground"
+              >
                 {new Date(item.addedAt).toLocaleDateString('id-ID')}
               </TableCell>
             </TableRow>
@@ -326,7 +353,7 @@ export function RulesTable({
         ) : (
           items.map((item) => (
             <TableRow key={item.id}>
-              <TableCell className="px-6 py-4">
+              <TableCell data-label="Aturan" className="px-6 py-4">
                 <div className="space-y-1">
                   <p className="font-medium text-foreground">{item.title}</p>
                   <p className="font-mono text-xs text-muted-foreground">
@@ -334,18 +361,24 @@ export function RulesTable({
                   </p>
                 </div>
               </TableCell>
-              <TableCell className="px-4 py-4 text-sm text-muted-foreground">
+              <TableCell
+                data-label="Kategori"
+                className="px-4 py-4 text-sm text-muted-foreground"
+              >
                 {item.categoryTitle}
               </TableCell>
-              <TableCell className="max-w-sm px-4 py-4 text-sm text-muted-foreground">
+              <TableCell
+                data-label="Isi ringkas"
+                className="max-w-sm px-4 py-4 text-sm text-muted-foreground"
+              >
                 <p className="line-clamp-2">{item.body}</p>
               </TableCell>
-              <TableCell className="px-4 py-4">
+              <TableCell data-label="Versi" className="px-4 py-4">
                 <Badge variant="outline">
                   v{item.versionNumber} · {item.versionStatus}
                 </Badge>
               </TableCell>
-              <TableCell className="px-6 py-4 text-right">
+              <TableCell data-label="Sifat" className="px-6 py-4 text-right">
                 <Badge variant={item.isMandatory ? 'default' : 'secondary'}>
                   {item.isMandatory ? 'Wajib' : 'Opsional'}
                 </Badge>
@@ -383,7 +416,7 @@ export function StaffTable({
         ) : (
           items.map((item) => (
             <TableRow key={item.id}>
-              <TableCell className="px-6 py-4">
+              <TableCell data-label="Nama staf" className="px-6 py-4">
                 <div className="space-y-1">
                   <p className="font-medium text-foreground">
                     {item.displayName}
@@ -393,17 +426,23 @@ export function StaffTable({
                   </p>
                 </div>
               </TableCell>
-              <TableCell className="px-4 py-4 font-mono text-xs text-muted-foreground">
+              <TableCell
+                data-label="User ID"
+                className="px-4 py-4 font-mono text-xs text-muted-foreground"
+              >
                 {item.userId}
               </TableCell>
-              <TableCell className="px-4 py-4">
+              <TableCell data-label="Peran" className="px-4 py-4">
                 <Badge
                   variant={item.roleKey === 'owner' ? 'default' : 'secondary'}
                 >
                   {item.roleDisplayName}
                 </Badge>
               </TableCell>
-              <TableCell className="px-6 py-4 text-right text-xs text-muted-foreground">
+              <TableCell
+                data-label="Ditugaskan"
+                className="px-6 py-4 text-right text-xs text-muted-foreground"
+              >
                 {new Date(item.assignedAt).toLocaleDateString('id-ID')}
               </TableCell>
             </TableRow>
