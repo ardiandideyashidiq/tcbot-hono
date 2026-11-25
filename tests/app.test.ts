@@ -73,29 +73,33 @@ describe('tcbot-hono foundation routes', () => {
     expect(await res.json()).toEqual({ ok: false, error: 'Not Found' });
   });
 
-  it('GET /api/ledger/* endpoints return unconfigured empty lists when supabase is unset', async () => {
+  it('GET /api/ledger/* endpoints return unconfigured empty lists with pagination when supabase is unset', async () => {
     const client = testClient(app, baseEnv);
 
     const [appealsRes, bansRes, warnsRes, groupsRes, rulesRes, staffRes] =
       await Promise.all([
-        client.api.ledger.appeals.$get(),
-        client.api.ledger.bans.$get(),
-        client.api.ledger.warns.$get(),
-        client.api.ledger.groups.$get(),
-        client.api.ledger.rules.$get(),
-        client.api.ledger.staff.$get(),
+        client.api.ledger.appeals.$get({ query: { page: '2', limit: '10' } }),
+        client.api.ledger.bans.$get({ query: {} }),
+        client.api.ledger.warns.$get({ query: {} }),
+        client.api.ledger.groups.$get({ query: {} }),
+        client.api.ledger.rules.$get({ query: {} }),
+        client.api.ledger.staff.$get({ query: {} }),
       ]);
 
-    for (const res of [
-      appealsRes,
-      bansRes,
-      warnsRes,
-      groupsRes,
-      rulesRes,
-      staffRes,
-    ]) {
+    expect(appealsRes.status).toBe(200);
+    expect(await appealsRes.json()).toEqual({
+      configured: false,
+      items: [],
+      pagination: { page: 2, limit: 10, total: 0, totalPages: 1 },
+    });
+
+    for (const res of [bansRes, warnsRes, groupsRes, rulesRes, staffRes]) {
       expect(res.status).toBe(200);
-      expect(await res.json()).toEqual({ configured: false, items: [] });
+      expect(await res.json()).toEqual({
+        configured: false,
+        items: [],
+        pagination: { page: 1, limit: 15, total: 0, totalPages: 1 },
+      });
     }
   });
 });

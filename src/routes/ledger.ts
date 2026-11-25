@@ -5,6 +5,17 @@ import { z } from 'zod';
 import { type AppEnv, hasSupabaseConfig } from '../lib/env';
 import { createSupabaseAdmin, type TypedSupabaseClient } from '../lib/supabase';
 
+const DEFAULT_PAGE_SIZE = 15;
+
+const paginationQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(50).default(DEFAULT_PAGE_SIZE),
+});
+
+const appealsQuerySchema = paginationQuerySchema.extend({
+  status: z.enum(['all', 'pending', 'history']).default('all'),
+});
+
 const decideAppealSchema = z.object({
   decision: z.enum(['approved', 'rejected']),
   note: z.string().max(1000).optional(),
@@ -19,6 +30,23 @@ function requireSupabase(env: CloudflareBindings): TypedSupabaseClient | null {
     return null;
   }
   return createSupabaseAdmin(env);
+}
+
+function buildPagination(page: number, limit: number, total: number) {
+  const safeTotal = Math.max(0, total);
+  const totalPages = Math.max(1, Math.ceil(safeTotal / limit));
+  return {
+    page,
+    limit,
+    total: safeTotal,
+    totalPages,
+  };
+}
+
+function toRange(page: number, limit: number): [number, number] {
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+  return [from, to];
 }
 
 async function fetchUsersMap(supabase: TypedSupabaseClient, userIds: number[]) {
@@ -91,19 +119,33 @@ function formatDisplayName(
 }
 
 const ledgerApp = new Hono<AppEnv>()
-  .get('/appeals', async (c) => {
+  .get('/appeals', zValidator('query', appealsQuerySchema), async (c) => {
+    const { page, limit, status } = c.req.valid('query');
     const supabase = requireSupabase(c.env);
     if (!supabase) {
-      return c.json({ configured: false, items: [] });
+      return c.json({
+        configured: false,
+        items: [],
+        pagination: buildPagination(page, limit, 0),
+      });
     }
 
-    const { data: appeals, error } = await supabase
+    const [from, to] = toRange(page, limit);
+    let query = supabase
       .from('moderation_appeals')
       .select(
         'id, action_id, appellant_user_id, appeal_text, status, submitted_at, resolved_at, reviewed_by_user_id, decision_note',
+        { count: 'exact' },
       )
-      .order('submitted_at', { ascending: false })
-      .limit(100);
+      .order('submitted_at', { ascending: false });
+
+    if (status === 'pending') {
+      query = query.eq('status', 'pending');
+    } else if (status === 'history') {
+      query = query.in('status', ['accepted', 'rejected', 'withdrawn']);
+    }
+
+    const { data: appeals, count, error } = await query.range(from, to);
 
     if (error) {
       throw new HTTPException(500, { message: error.message });
@@ -162,7 +204,11 @@ const ledgerApp = new Hono<AppEnv>()
       };
     });
 
-    return c.json({ configured: true, items });
+    return c.json({
+      configured: true,
+      items,
+      pagination: buildPagination(page, limit, count ?? items.length),
+    });
   })
   .post(
     '/appeals/:id/decide',
@@ -211,20 +257,31 @@ const ledgerApp = new Hono<AppEnv>()
       return c.json({ ok: true, appeal: updatedAppeal });
     },
   )
-  .get('/bans', async (c) => {
+  .get('/bans', zValidator('query', paginationQuerySchema), async (c) => {
+    const { page, limit } = c.req.valid('query');
     const supabase = requireSupabase(c.env);
     if (!supabase) {
-      return c.json({ configured: false, items: [] });
+      return c.json({
+        configured: false,
+        items: [],
+        pagination: buildPagination(page, limit, 0),
+      });
     }
 
-    const { data: bans, error } = await supabase
+    const [from, to] = toRange(page, limit);
+    const {
+      data: bans,
+      count,
+      error,
+    } = await supabase
       .from('moderation_actions')
       .select(
         'id, external_ref, target_user_id, actor_user_id, chat_id, origin_chat_id, reason, status, created_at, expires_at',
+        { count: 'exact' },
       )
       .eq('action_type', 'ban')
       .order('created_at', { ascending: false })
-      .limit(100);
+      .range(from, to);
 
     if (error) {
       throw new HTTPException(500, { message: error.message });
@@ -260,7 +317,11 @@ const ledgerApp = new Hono<AppEnv>()
       };
     });
 
-    return c.json({ configured: true, items });
+    return c.json({
+      configured: true,
+      items,
+      pagination: buildPagination(page, limit, count ?? items.length),
+    });
   })
   .post('/bans/:id/revoke', zValidator('json', revokeBanSchema), async (c) => {
     const supabase = requireSupabase(c.env);
@@ -302,20 +363,31 @@ const ledgerApp = new Hono<AppEnv>()
 
     return c.json({ ok: true, action: updated });
   })
-  .get('/warns', async (c) => {
+  .get('/warns', zValidator('query', paginationQuerySchema), async (c) => {
+    const { page, limit } = c.req.valid('query');
     const supabase = requireSupabase(c.env);
     if (!supabase) {
-      return c.json({ configured: false, items: [] });
+      return c.json({
+        configured: false,
+        items: [],
+        pagination: buildPagination(page, limit, 0),
+      });
     }
 
-    const { data: warns, error } = await supabase
+    const [from, to] = toRange(page, limit);
+    const {
+      data: warns,
+      count,
+      error,
+    } = await supabase
       .from('moderation_actions')
       .select(
         'id, external_ref, target_user_id, chat_id, reason, status, created_at, expires_at',
+        { count: 'exact' },
       )
       .eq('action_type', 'warn')
       .order('created_at', { ascending: false })
-      .limit(100);
+      .range(from, to);
 
     if (error) {
       throw new HTTPException(500, { message: error.message });
@@ -349,18 +421,35 @@ const ledgerApp = new Hono<AppEnv>()
       };
     });
 
-    return c.json({ configured: true, items });
+    return c.json({
+      configured: true,
+      items,
+      pagination: buildPagination(page, limit, count ?? items.length),
+    });
   })
-  .get('/groups', async (c) => {
+  .get('/groups', zValidator('query', paginationQuerySchema), async (c) => {
+    const { page, limit } = c.req.valid('query');
     const supabase = requireSupabase(c.env);
     if (!supabase) {
-      return c.json({ configured: false, items: [] });
+      return c.json({
+        configured: false,
+        items: [],
+        pagination: buildPagination(page, limit, 0),
+      });
     }
 
-    const { data: connected, error } = await supabase
+    const [from, to] = toRange(page, limit);
+    const {
+      data: connected,
+      count,
+      error,
+    } = await supabase
       .from('connected_chats')
-      .select('chat_id, added_by_user_id, added_at, is_active')
-      .order('added_at', { ascending: false });
+      .select('chat_id, added_by_user_id, added_at, is_active', {
+        count: 'exact',
+      })
+      .order('added_at', { ascending: false })
+      .range(from, to);
 
     if (error) {
       throw new HTTPException(500, { message: error.message });
@@ -382,12 +471,21 @@ const ledgerApp = new Hono<AppEnv>()
       };
     });
 
-    return c.json({ configured: true, items });
+    return c.json({
+      configured: true,
+      items,
+      pagination: buildPagination(page, limit, count ?? items.length),
+    });
   })
-  .get('/rules', async (c) => {
+  .get('/rules', zValidator('query', paginationQuerySchema), async (c) => {
+    const { page, limit } = c.req.valid('query');
     const supabase = requireSupabase(c.env);
     if (!supabase) {
-      return c.json({ configured: false, items: [] });
+      return c.json({
+        configured: false,
+        items: [],
+        pagination: buildPagination(page, limit, 0),
+      });
     }
 
     const { data: versions, error: versionError } = await supabase
@@ -403,16 +501,27 @@ const ledgerApp = new Hono<AppEnv>()
 
     const versionIds = (versions ?? []).map((v) => v.id);
     if (versionIds.length === 0) {
-      return c.json({ configured: true, items: [] });
+      return c.json({
+        configured: true,
+        items: [],
+        pagination: buildPagination(page, limit, 0),
+      });
     }
 
-    const { data: ruleItems, error: itemsError } = await supabase
+    const [from, to] = toRange(page, limit);
+    const {
+      data: ruleItems,
+      count,
+      error: itemsError,
+    } = await supabase
       .from('rule_items')
       .select(
         'id, rule_set_version_id, rule_key, category_key, category_title, title, body, sort_order, is_mandatory',
+        { count: 'exact' },
       )
       .in('rule_set_version_id', versionIds)
-      .order('sort_order', { ascending: true });
+      .order('sort_order', { ascending: true })
+      .range(from, to);
 
     if (itemsError) {
       throw new HTTPException(500, { message: itemsError.message });
@@ -434,19 +543,39 @@ const ledgerApp = new Hono<AppEnv>()
       };
     });
 
-    return c.json({ configured: true, items });
+    return c.json({
+      configured: true,
+      items,
+      pagination: buildPagination(page, limit, count ?? items.length),
+    });
   })
-  .get('/staff', async (c) => {
+  .get('/staff', zValidator('query', paginationQuerySchema), async (c) => {
+    const { page, limit } = c.req.valid('query');
     const supabase = requireSupabase(c.env);
     if (!supabase) {
-      return c.json({ configured: false, items: [] });
+      return c.json({
+        configured: false,
+        items: [],
+        pagination: buildPagination(page, limit, 0),
+      });
     }
 
-    const { data: assignments, error } = await supabase
+    const [from, to] = toRange(page, limit);
+    const {
+      data: assignments,
+      count,
+      error,
+    } = await supabase
       .from('role_assignments')
-      .select('id, user_id, role_key, assigned_by_user_id, assigned_at, status')
+      .select(
+        'id, user_id, role_key, assigned_by_user_id, assigned_at, status',
+        {
+          count: 'exact',
+        },
+      )
       .eq('status', 'active')
-      .order('assigned_at', { ascending: true });
+      .order('assigned_at', { ascending: true })
+      .range(from, to);
 
     if (error) {
       throw new HTTPException(500, { message: error.message });
@@ -481,7 +610,11 @@ const ledgerApp = new Hono<AppEnv>()
       })
       .sort((a, b) => b.priority - a.priority);
 
-    return c.json({ configured: true, items });
+    return c.json({
+      configured: true,
+      items,
+      pagination: buildPagination(page, limit, count ?? items.length),
+    });
   });
 
 export default ledgerApp;

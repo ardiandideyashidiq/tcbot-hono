@@ -51,6 +51,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { AppSidebar } from './components/AppSidebar';
 import { CaseDossier } from './components/CaseDossier';
+import { PaginationBar, type PaginationMeta } from './components/PaginationBar';
 import {
   type BanRow,
   BansTable,
@@ -95,6 +96,13 @@ export function App() {
   const [staff, setStaff] = useState<StaffRow[]>([]);
 
   const [loadingSection, setLoadingSection] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginationMeta>({
+    page: 1,
+    limit: 15,
+    total: 0,
+    totalPages: 1,
+  });
   const [statusTab, setStatusTab] = useState<'all' | 'pending' | 'history'>(
     'all',
   );
@@ -107,56 +115,81 @@ export function App() {
     document.documentElement.classList.toggle('dark', darkMode);
   }, [darkMode]);
 
-  const loadSectionData = useCallback(async (section: LedgerSection) => {
-    setLoadingSection(true);
-    try {
-      if (section === 'appeals') {
-        const res = await api.api.ledger.appeals.$get();
-        if (!res.ok) throw new Error('Gagal memuat data banding');
-        const data = await res.json();
-        setCases(data.items);
-        setSelectedId((prev) => prev ?? data.items[0]?.id ?? null);
-      } else if (section === 'bans') {
-        const res = await api.api.ledger.bans.$get();
-        if (!res.ok) throw new Error('Gagal memuat daftar ban');
-        const data = await res.json();
-        setBans(data.items);
-      } else if (section === 'warns') {
-        const res = await api.api.ledger.warns.$get();
-        if (!res.ok) throw new Error('Gagal memuat daftar peringatan');
-        const data = await res.json();
-        setWarns(data.items);
-      } else if (section === 'groups') {
-        const res = await api.api.ledger.groups.$get();
-        if (!res.ok) throw new Error('Gagal memuat grup terhubung');
-        const data = await res.json();
-        setGroups(data.items);
-      } else if (section === 'rules') {
-        const res = await api.api.ledger.rules.$get();
-        if (!res.ok) throw new Error('Gagal memuat aturan');
-        const data = await res.json();
-        setRules(data.items);
-      } else if (section === 'staff') {
-        const res = await api.api.ledger.staff.$get();
-        if (!res.ok) throw new Error('Gagal memuat daftar staf');
-        const data = await res.json();
-        setStaff(data.items);
+  const loadSectionData = useCallback(
+    async (
+      section: LedgerSection,
+      targetPage: number,
+      appealStatus: 'all' | 'pending' | 'history',
+    ) => {
+      setLoadingSection(true);
+      const query = { page: String(targetPage), limit: '15' };
+      try {
+        if (section === 'appeals') {
+          const res = await api.api.ledger.appeals.$get({
+            query: { ...query, status: appealStatus },
+          });
+          if (!res.ok) throw new Error('Gagal memuat data banding');
+          const data = await res.json();
+          setCases(data.items);
+          setPagination(data.pagination);
+          setSelectedId(data.items[0]?.id ?? null);
+        } else if (section === 'bans') {
+          const res = await api.api.ledger.bans.$get({ query });
+          if (!res.ok) throw new Error('Gagal memuat daftar ban');
+          const data = await res.json();
+          setBans(data.items);
+          setPagination(data.pagination);
+        } else if (section === 'warns') {
+          const res = await api.api.ledger.warns.$get({ query });
+          if (!res.ok) throw new Error('Gagal memuat daftar peringatan');
+          const data = await res.json();
+          setWarns(data.items);
+          setPagination(data.pagination);
+        } else if (section === 'groups') {
+          const res = await api.api.ledger.groups.$get({ query });
+          if (!res.ok) throw new Error('Gagal memuat grup terhubung');
+          const data = await res.json();
+          setGroups(data.items);
+          setPagination(data.pagination);
+        } else if (section === 'rules') {
+          const res = await api.api.ledger.rules.$get({ query });
+          if (!res.ok) throw new Error('Gagal memuat aturan');
+          const data = await res.json();
+          setRules(data.items);
+          setPagination(data.pagination);
+        } else if (section === 'staff') {
+          const res = await api.api.ledger.staff.$get({ query });
+          if (!res.ok) throw new Error('Gagal memuat daftar staf');
+          const data = await res.json();
+          setStaff(data.items);
+          setPagination(data.pagination);
+        }
+      } catch (err) {
+        toast('Gagal memuat data', {
+          description:
+            err instanceof Error
+              ? err.message
+              : 'Periksa koneksi API Hono dan Supabase.',
+        });
+      } finally {
+        setLoadingSection(false);
       }
-    } catch (err) {
-      toast('Gagal memuat data', {
-        description:
-          err instanceof Error
-            ? err.message
-            : 'Periksa koneksi API Hono dan Supabase.',
-      });
-    } finally {
-      setLoadingSection(false);
-    }
-  }, []);
+    },
+    [],
+  );
 
   useEffect(() => {
-    void loadSectionData(activeSection);
-  }, [activeSection, loadSectionData]);
+    void loadSectionData(
+      activeSection,
+      page,
+      activeSection === 'appeals' ? statusTab : 'all',
+    );
+  }, [activeSection, page, statusTab, loadSectionData]);
+
+  const handleSelectSection = (section: LedgerSection) => {
+    setPage(1);
+    setActiveSection(section);
+  };
 
   const filteredCases = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -326,7 +359,7 @@ export function App() {
         <div className="flex min-h-dvh w-full bg-background text-foreground">
           <AppSidebar
             activeSection={activeSection}
-            onSelectSection={setActiveSection}
+            onSelectSection={handleSelectSection}
             pendingCount={pendingCount}
           />
 
@@ -345,7 +378,13 @@ export function App() {
                   variant="ghost"
                   size="icon"
                   aria-label="Muat ulang data"
-                  onClick={() => void loadSectionData(activeSection)}
+                  onClick={() =>
+                    void loadSectionData(
+                      activeSection,
+                      page,
+                      activeSection === 'appeals' ? statusTab : 'all',
+                    )
+                  }
                   disabled={loadingSection}
                 >
                   <RefreshCw
@@ -394,9 +433,12 @@ export function App() {
                         <div className="flex flex-wrap items-center justify-between gap-4">
                           <Tabs
                             value={statusTab}
-                            onValueChange={(val) =>
-                              setStatusTab(val as 'all' | 'pending' | 'history')
-                            }
+                            onValueChange={(val) => {
+                              setPage(1);
+                              setStatusTab(
+                                val as 'all' | 'pending' | 'history',
+                              );
+                            }}
                           >
                             <TabsList>
                               <TabsTrigger value="all">Semua</TabsTrigger>
@@ -529,6 +571,12 @@ export function App() {
                           </TableBody>
                         </Table>
                       </section>
+
+                      <PaginationBar
+                        pagination={pagination}
+                        disabled={loadingSection}
+                        onPageChange={setPage}
+                      />
                     </section>
 
                     <aside className="hidden rounded-lg border border-border bg-card lg:col-span-5 lg:block">
@@ -565,6 +613,12 @@ export function App() {
                   {activeSection === 'staff' && (
                     <StaffTable items={staff} loading={loadingSection} />
                   )}
+
+                  <PaginationBar
+                    pagination={pagination}
+                    disabled={loadingSection}
+                    onPageChange={setPage}
+                  />
                 </section>
               )}
             </div>
