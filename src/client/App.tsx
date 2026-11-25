@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { flushSync } from 'react-dom';
@@ -64,6 +65,7 @@ import {
   type WarnRow,
   WarnsTable,
 } from './components/SectionTables';
+import { useDynamicPageSize } from './hooks/use-dynamic-page-size';
 import { api } from './lib/api';
 import type { CaseStatus, LedgerCase, LedgerSection } from './types';
 
@@ -110,6 +112,8 @@ export function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const tableContainerRef = useRef<HTMLElement | null>(null);
+  const dynamicLimit = useDynamicPageSize(tableContainerRef, 8);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
@@ -119,10 +123,11 @@ export function App() {
     async (
       section: LedgerSection,
       targetPage: number,
+      targetLimit: number,
       appealStatus: 'all' | 'pending' | 'history',
     ) => {
       setLoadingSection(true);
-      const query = { page: String(targetPage), limit: '15' };
+      const query = { page: String(targetPage), limit: String(targetLimit) };
       try {
         if (section === 'appeals') {
           const res = await api.api.ledger.appeals.$get({
@@ -182,9 +187,10 @@ export function App() {
     void loadSectionData(
       activeSection,
       page,
+      dynamicLimit,
       activeSection === 'appeals' ? statusTab : 'all',
     );
-  }, [activeSection, page, statusTab, loadSectionData]);
+  }, [activeSection, page, dynamicLimit, statusTab, loadSectionData]);
 
   const handleSelectSection = (section: LedgerSection) => {
     setPage(1);
@@ -356,14 +362,14 @@ export function App() {
   return (
     <TooltipProvider>
       <SidebarProvider>
-        <div className="flex min-h-dvh w-full bg-background text-foreground">
+        <div className="flex h-dvh w-full overflow-hidden bg-background text-foreground">
           <AppSidebar
             activeSection={activeSection}
             onSelectSection={handleSelectSection}
             pendingCount={pendingCount}
           />
 
-          <SidebarInset className="flex min-w-0 flex-1 flex-col">
+          <SidebarInset className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <header className="flex min-h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-card px-4 pt-[env(safe-area-inset-top,0px)] sm:px-6">
               <div className="flex items-center gap-3">
                 <SidebarTrigger />
@@ -382,6 +388,7 @@ export function App() {
                     void loadSectionData(
                       activeSection,
                       page,
+                      dynamicLimit,
                       activeSection === 'appeals' ? statusTab : 'all',
                     )
                   }
@@ -406,11 +413,11 @@ export function App() {
               </div>
             </header>
 
-            <div className="flex flex-1 flex-col gap-5 p-4 pb-[max(1.5rem,env(safe-area-inset-bottom,0px))] sm:gap-6 sm:p-6">
+            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] sm:gap-5 sm:p-6">
               {activeSection === 'appeals' ? (
                 <>
                   {pendingCount > 0 && (
-                    <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border bg-card px-5 py-3.5">
+                    <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 rounded-lg border border-border bg-card px-5 py-3">
                       <p className="text-sm text-foreground">
                         <span className="font-semibold">
                           {pendingCount} banding
@@ -420,15 +427,18 @@ export function App() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setStatusTab('pending')}
+                        onClick={() => {
+                          setPage(1);
+                          setStatusTab('pending');
+                        }}
                       >
                         Tampilkan antrean aktif
                       </Button>
                     </div>
                   )}
 
-                  <div className="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-12">
-                    <section className="flex flex-col rounded-lg border border-border bg-card lg:col-span-7">
+                  <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-12">
+                    <section className="flex min-h-0 flex-col rounded-lg border border-border bg-card lg:col-span-7">
                       <div className="flex flex-col gap-4 border-b border-border p-5">
                         <div className="flex flex-wrap items-center justify-between gap-4">
                           <Tabs
@@ -478,8 +488,9 @@ export function App() {
                       </div>
 
                       <section
+                        ref={tableContainerRef}
                         aria-label="Daftar banding"
-                        className="ledger-table-wrap flex-1 overflow-x-auto"
+                        className="ledger-table-wrap min-h-0 flex-1 overflow-auto"
                       >
                         <Table>
                           <TableHeader>
@@ -579,7 +590,7 @@ export function App() {
                       />
                     </section>
 
-                    <aside className="hidden rounded-lg border border-border bg-card lg:col-span-5 lg:block">
+                    <aside className="hidden min-h-0 overflow-hidden rounded-lg border border-border bg-card lg:col-span-5 lg:block">
                       <CaseDossier
                         selectedCase={selectedCase}
                         onDecide={(id, decision, note) =>
@@ -590,29 +601,33 @@ export function App() {
                   </div>
                 </>
               ) : (
-                <section
-                  aria-label={SECTION_TITLES[activeSection]}
-                  className="ledger-table-wrap overflow-x-auto rounded-lg border border-border bg-card"
-                >
-                  {activeSection === 'bans' && (
-                    <BansTable
-                      items={bans}
-                      loading={loadingSection}
-                      onRevokeBan={(id) => void handleRevokeBan(id)}
-                    />
-                  )}
-                  {activeSection === 'warns' && (
-                    <WarnsTable items={warns} loading={loadingSection} />
-                  )}
-                  {activeSection === 'groups' && (
-                    <GroupsTable items={groups} loading={loadingSection} />
-                  )}
-                  {activeSection === 'rules' && (
-                    <RulesTable items={rules} loading={loadingSection} />
-                  )}
-                  {activeSection === 'staff' && (
-                    <StaffTable items={staff} loading={loadingSection} />
-                  )}
+                <section className="flex min-h-0 flex-1 flex-col rounded-lg border border-border bg-card">
+                  <div
+                    ref={(el) => {
+                      tableContainerRef.current = el;
+                    }}
+                    className="ledger-table-wrap min-h-0 flex-1 overflow-auto"
+                  >
+                    {activeSection === 'bans' && (
+                      <BansTable
+                        items={bans}
+                        loading={loadingSection}
+                        onRevokeBan={(id) => void handleRevokeBan(id)}
+                      />
+                    )}
+                    {activeSection === 'warns' && (
+                      <WarnsTable items={warns} loading={loadingSection} />
+                    )}
+                    {activeSection === 'groups' && (
+                      <GroupsTable items={groups} loading={loadingSection} />
+                    )}
+                    {activeSection === 'rules' && (
+                      <RulesTable items={rules} loading={loadingSection} />
+                    )}
+                    {activeSection === 'staff' && (
+                      <StaffTable items={staff} loading={loadingSection} />
+                    )}
+                  </div>
 
                   <PaginationBar
                     pagination={pagination}

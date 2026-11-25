@@ -147,6 +147,8 @@
 
 .ledger-table-wrap {
   container-type: inline-size;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
 }
 
 @container (width < 560px) {
