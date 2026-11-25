@@ -9,7 +9,7 @@
     "run_worker_first": ["/api/*", "/webhook/*"]
   },
   "placement": {
-    "mode": "smart"
+    "hostname": "api.telegram.org"
   },
   "kv_namespaces": [
     {

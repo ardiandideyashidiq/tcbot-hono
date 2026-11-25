@@ -31,6 +31,37 @@ function getBot(env: CloudflareBindings): Bot<BotContext> {
   return bot;
 }
 
+function botInfoKvKey(token: string): string {
+  const botId = token.split(':')[0] ?? 'default';
+  return `bot_info:${botId}`;
+}
+
+async function ensureBotInited(
+  bot: Bot<BotContext>,
+  token: string,
+  kv?: KVNamespace,
+): Promise<void> {
+  if (bot.isInited()) {
+    return;
+  }
+  const key = botInfoKvKey(token);
+  if (kv) {
+    const cached = await kv
+      .get<Bot<BotContext>['botInfo']>(key, 'json')
+      .catch(() => null);
+    if (cached && typeof cached.id === 'number' && cached.is_bot) {
+      bot.botInfo = cached;
+      return;
+    }
+  }
+  await bot.init();
+  if (kv && bot.isInited()) {
+    void kv
+      .put(key, JSON.stringify(bot.botInfo), { expirationTtl: 86_400 })
+      .catch(() => {});
+  }
+}
+
 function constantTimeEqual(a: string, b: string): boolean {
   const encoder = new TextEncoder();
   const aBytes = encoder.encode(a);
@@ -92,9 +123,7 @@ const webhookApp = new Hono<AppEnv>()
     }
 
     const runUpdate = async () => {
-      if (!bot.isInited()) {
-        await bot.init();
-      }
+      await ensureBotInited(bot, token, c.env.BOT_CACHE);
       await bot.handleUpdate(update);
     };
 

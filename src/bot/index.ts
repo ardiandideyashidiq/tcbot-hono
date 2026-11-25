@@ -45,8 +45,12 @@ function scheduleBackgroundTask(promise: Promise<unknown>): void {
   }
 }
 
-export function createBot(env: CloudflareBindings): Bot<BotContext> {
+export function createBot(
+  env: CloudflareBindings,
+  botInfo?: Bot<BotContext>['botInfo'],
+): Bot<BotContext> {
   const bot = new Bot<BotContext>(env.TELEGRAM_BOT_TOKEN, {
+    botInfo,
     client: {
       fetch: ((url: string | URL | Request, init?: RequestInit) =>
         globalThis.fetch(url, init)) as never,
