@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { testClient } from 'hono/testing';
-import app from '../src/index';
+import { app } from '../src/index';
+import { expireDueModerationActions } from '../src/lib/telegram-sync';
 
 const baseEnv = {
   COMMUNITY_NAME: 'Bot',
@@ -101,5 +102,22 @@ describe('tcbot-hono foundation routes', () => {
         pagination: { page: 1, limit: 15, total: 0, totalPages: 1 },
       });
     }
+  });
+
+  it('GET /webhook/info reports unconfigured status and sets X-Content-Type-Options', async () => {
+    const client = testClient(app, baseEnv);
+    const res = await client.webhook.info.$get();
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('X-Content-Type-Options')).toBe('nosniff');
+    expect(await res.json()).toEqual({
+      configured: false,
+      path: '/webhook/telegram',
+    });
+  });
+
+  it('expireDueModerationActions safely no-ops when supabase is unconfigured', async () => {
+    const result = await expireDueModerationActions(baseEnv);
+    expect(result).toEqual({ expiredCount: 0 });
   });
 });

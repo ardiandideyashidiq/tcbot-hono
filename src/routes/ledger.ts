@@ -4,6 +4,7 @@ import { HTTPException } from 'hono/http-exception';
 import { z } from 'zod';
 import { type AppEnv, hasSupabaseConfig } from '../lib/env';
 import { createSupabaseAdmin, type TypedSupabaseClient } from '../lib/supabase';
+import { syncUnbanToTelegram } from '../lib/telegram-sync';
 
 const DEFAULT_PAGE_SIZE = 15;
 
@@ -235,7 +236,7 @@ const ledgerApp = new Hono<AppEnv>()
           resolved_at: new Date().toISOString(),
         })
         .eq('id', appealId)
-        .select('id, action_id, status')
+        .select('id, action_id, appellant_user_id, status')
         .single();
 
       if (error || !updatedAppeal) {
@@ -252,6 +253,18 @@ const ledgerApp = new Hono<AppEnv>()
             revoked_at: new Date().toISOString(),
           })
           .eq('id', updatedAppeal.action_id);
+
+        const syncTask = syncUnbanToTelegram(
+          c.env,
+          supabase,
+          updatedAppeal.appellant_user_id,
+          'Banding Anda telah disetujui dan ban federasi Anda telah dicabut.',
+        );
+        try {
+          c.executionCtx.waitUntil(syncTask);
+        } catch {
+          await syncTask;
+        }
       }
 
       return c.json({ ok: true, appeal: updatedAppeal });
@@ -360,6 +373,17 @@ const ledgerApp = new Hono<AppEnv>()
       action_id: updated.id,
       payload: { reason: reason ?? 'Revoked from web console' },
     });
+
+    const syncTask = syncUnbanToTelegram(
+      c.env,
+      supabase,
+      updated.target_user_id,
+    );
+    try {
+      c.executionCtx.waitUntil(syncTask);
+    } catch {
+      await syncTask;
+    }
 
     return c.json({ ok: true, action: updated });
   })

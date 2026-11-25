@@ -11,6 +11,9 @@
   "observability": {
     "enabled": true
   },
+  "triggers": {
+    "crons": ["*/10 * * * *"]
+  },
   "vars": {
     "COMMUNITY_NAME": "Bot",
     "PREFIXES": "/,!,.",

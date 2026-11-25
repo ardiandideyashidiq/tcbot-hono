@@ -18,27 +18,36 @@ function constantTimeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-const webhookApp = new Hono<AppEnv>().post('/telegram', async (c) => {
-  const token = c.env.TELEGRAM_BOT_TOKEN?.trim();
-  const secretToken = c.env.TELEGRAM_WEBHOOK_SECRET?.trim();
-
-  if (!token || !secretToken) {
-    throw new HTTPException(500, {
-      message: 'Telegram webhook is not configured',
+const webhookApp = new Hono<AppEnv>()
+  .get('/info', (c) => {
+    const hasToken = Boolean(c.env.TELEGRAM_BOT_TOKEN?.trim());
+    const hasSecret = Boolean(c.env.TELEGRAM_WEBHOOK_SECRET?.trim());
+    return c.json({
+      configured: hasToken && hasSecret,
+      path: '/webhook/telegram',
     });
-  }
+  })
+  .post('/telegram', async (c) => {
+    const token = c.env.TELEGRAM_BOT_TOKEN?.trim();
+    const secretToken = c.env.TELEGRAM_WEBHOOK_SECRET?.trim();
 
-  const provided = c.req.header('X-Telegram-Bot-Api-Secret-Token') ?? '';
-  if (!constantTimeEqual(provided, secretToken)) {
-    return c.text('Unauthorized', 401);
-  }
+    if (!token || !secretToken) {
+      throw new HTTPException(500, {
+        message: 'Telegram webhook is not configured',
+      });
+    }
 
-  const bot = createBot(c.env);
-  const handleUpdate = webhookCallback(bot, 'hono', {
-    secretToken,
+    const provided = c.req.header('X-Telegram-Bot-Api-Secret-Token') ?? '';
+    if (!constantTimeEqual(provided, secretToken)) {
+      return c.text('Unauthorized', 401);
+    }
+
+    const bot = createBot(c.env);
+    const handleUpdate = webhookCallback(bot, 'hono', {
+      secretToken,
+    });
+
+    return handleUpdate(c);
   });
-
-  return handleUpdate(c);
-});
 
 export default webhookApp;

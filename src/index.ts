@@ -1,11 +1,20 @@
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import type { AppEnv } from './lib/env';
+import { expireDueModerationActions } from './lib/telegram-sync';
 import healthApp from './routes/health';
 import ledgerApp from './routes/ledger';
 import webhookApp from './routes/webhook';
 
 const app = new Hono<AppEnv>()
+  .use('/api/*', async (c, next) => {
+    await next();
+    c.header('X-Content-Type-Options', 'nosniff');
+  })
+  .use('/webhook/*', async (c, next) => {
+    await next();
+    c.header('X-Content-Type-Options', 'nosniff');
+  })
   .onError((err, c) => {
     if (err instanceof HTTPException) {
       return err.getResponse();
@@ -28,4 +37,15 @@ const app = new Hono<AppEnv>()
   .route('/webhook', webhookApp);
 
 export type AppType = typeof app;
-export default app;
+export { app };
+
+export default {
+  fetch: app.fetch,
+  async scheduled(
+    _controller: ScheduledController,
+    env: CloudflareBindings,
+    ctx: ExecutionContext,
+  ) {
+    ctx.waitUntil(expireDueModerationActions(env));
+  },
+};

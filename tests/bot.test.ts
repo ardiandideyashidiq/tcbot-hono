@@ -6,7 +6,7 @@ import {
   resolveTargetUser,
 } from '../src/bot/db';
 import { normalizeLocale, t } from '../src/bot/i18n';
-import app from '../src/index';
+import { app } from '../src/index';
 
 const botEnv = {
   COMMUNITY_NAME: 'Bot',
