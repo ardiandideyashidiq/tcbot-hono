@@ -7,7 +7,6 @@ import {
   Link2,
   Search,
   ShieldAlert,
-  Sparkles,
 } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -162,10 +161,6 @@ export function PublicRulesPage({
             <ArrowLeft className="size-3.5" />
             Kembali ke ringkasan
           </button>
-          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-primary/20 bg-primary/8 px-3 py-1 text-xs font-medium text-primary">
-            <Sparkles className="size-3.5" />
-            Piagam Tata Tertib Komunitas
-          </div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-4xl">
             Aturan Lengkap {data?.communityName || 'tcbot'}
           </h1>
@@ -317,9 +312,9 @@ export function PublicRulesPage({
                     <h2 className="text-base font-semibold tracking-tight text-foreground">
                       {category}
                     </h2>
-                    <Badge variant="outline" className="tabular-nums">
+                    <span className="text-xs font-medium text-muted-foreground tabular-nums">
                       {items.length} butir
-                    </Badge>
+                    </span>
                   </div>
 
                   <ul className="divide-y divide-border/60">
@@ -330,20 +325,13 @@ export function PublicRulesPage({
                         className="rule-card-item scroll-mt-24 flex flex-col gap-2 px-5 py-5 transition-colors hover:bg-muted/25 sm:px-6"
                       >
                         <div className="flex flex-wrap items-start justify-between gap-2">
-                          <div className="flex flex-wrap items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2.5">
                             <h3 className="text-base font-semibold text-foreground">
                               {rule.title}
                             </h3>
-                            <Badge
-                              variant={
-                                rule.isMandatory ? 'destructive' : 'secondary'
-                              }
-                            >
-                              {rule.isMandatory ? 'Wajib' : 'Anjuran'}
-                            </Badge>
-                            <span className="rounded-md bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">
-                              {rule.ruleKey}
-                            </span>
+                            {rule.isMandatory && (
+                              <Badge variant="destructive">Wajib</Badge>
+                            )}
                           </div>
 
                           <Button

@@ -2,7 +2,6 @@ import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 import { ArrowLeft, MessageSquareWarning, Users } from 'lucide-react';
 import { useRef } from 'react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { PublicOverview } from '../hooks/use-public-overview';
@@ -99,26 +98,18 @@ export function PublicGroupsPage({
               key={group.chatId}
               className="group-card-reveal flex flex-col justify-between gap-4 rounded-2xl border border-border/80 bg-card/90 p-5 shadow-xs transition-colors hover:border-primary/40"
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <Users className="size-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <h2 className="truncate text-base font-semibold text-foreground">
-                      {group.title}
-                    </h2>
-                    <p className="font-mono text-xs text-muted-foreground">
-                      {group.chatType}
-                    </p>
-                  </div>
+              <div className="flex items-center gap-3">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Users className="size-5" />
                 </div>
-                <Badge
-                  variant="secondary"
-                  className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                >
-                  Aktif
-                </Badge>
+                <div className="min-w-0">
+                  <h2 className="truncate text-base font-semibold text-foreground">
+                    {group.title}
+                  </h2>
+                  <p className="font-mono text-xs text-muted-foreground">
+                    {group.chatType}
+                  </p>
+                </div>
               </div>
               <p className="text-xs text-muted-foreground">
                 Terhubung sejak{' '}

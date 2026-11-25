@@ -5,7 +5,6 @@ import {
   ArrowRight,
   BookOpen,
   CheckCircle2,
-  Sparkles,
   Users,
 } from 'lucide-react';
 import { useMemo, useRef } from 'react';
@@ -106,10 +105,6 @@ export function PublicDashboard({
       <section className="grid gap-5 lg:grid-cols-12 lg:items-stretch">
         <div className="hero-reveal flex flex-col justify-between gap-6 rounded-2xl border border-border/80 bg-card/90 p-6 shadow-xs backdrop-blur-sm sm:p-8 lg:col-span-7">
           <div className="flex flex-col gap-4">
-            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-primary/20 bg-primary/8 px-3 py-1 text-xs font-medium text-primary">
-              <Sparkles className="size-3.5" />
-              Tata Kelola Komunitas Terbuka
-            </div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-4xl sm:leading-[1.15]">
               Aturan jelas, moderasi adil, dan statistik terbuka untuk{' '}
               <span className="text-primary">{communityName}</span>.
@@ -340,20 +335,12 @@ export function PublicDashboard({
                   key={group.chatId}
                   className="flex items-center justify-between gap-3 py-3"
                 >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-foreground">
-                      {group.title}
-                    </p>
-                    <p className="font-mono text-xs text-muted-foreground">
-                      {group.chatType}
-                    </p>
-                  </div>
-                  <Badge
-                    variant="secondary"
-                    className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                  >
-                    Aktif
-                  </Badge>
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {group.title}
+                  </p>
+                  <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                    {group.chatType}
+                  </span>
                 </li>
               ))}
             </ul>
