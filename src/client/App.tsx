@@ -102,28 +102,10 @@ export function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [healthStatus, setHealthStatus] = useState<
-    'loading' | 'ok' | 'degraded'
-  >('loading');
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
   }, [darkMode]);
-
-  useEffect(() => {
-    let active = true;
-    api.api.health
-      .$get({ query: {} })
-      .then((res) => {
-        if (active) setHealthStatus(res.ok ? 'ok' : 'degraded');
-      })
-      .catch(() => {
-        if (active) setHealthStatus('degraded');
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   const loadSectionData = useCallback(async (section: LedgerSection) => {
     setLoadingSection(true);
@@ -346,7 +328,6 @@ export function App() {
             activeSection={activeSection}
             onSelectSection={setActiveSection}
             pendingCount={pendingCount}
-            healthStatus={healthStatus}
           />
 
           <SidebarInset className="flex min-w-0 flex-1 flex-col">
