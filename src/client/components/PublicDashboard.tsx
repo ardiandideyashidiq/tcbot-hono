@@ -47,16 +47,16 @@ export function PublicDashboard({
       mm.add('(prefers-reduced-motion: no-preference)', () => {
         gsap.from('.docket-reveal', {
           opacity: 0,
-          y: 12,
-          duration: 0.38,
-          stagger: 0.05,
+          y: 10,
+          duration: 0.34,
+          stagger: 0.04,
           ease: 'power2.out',
           clearProps: 'transform,opacity',
         });
       });
       return () => mm.revert();
     },
-    { scope: containerRef, dependencies: [Boolean(data)] },
+    { scope: containerRef },
   );
 
   const communityName = data?.communityName || 'tcbot';
@@ -75,7 +75,7 @@ export function PublicDashboard({
   return (
     <div
       ref={containerRef}
-      className="flex h-full min-h-0 flex-col justify-between gap-3"
+      className="docket-scroll flex h-full min-h-0 flex-col justify-between gap-2.5 overflow-y-auto lg:overflow-visible"
     >
       {error && (
         <div className="flex shrink-0 items-center justify-between gap-3 border border-destructive/40 bg-[var(--tape-crimson)] px-3 py-1.5 text-xs text-destructive">
@@ -108,37 +108,37 @@ export function PublicDashboard({
                 <div className="h-9 w-3/5 animate-pulse bg-muted/50" />
               </div>
             ) : (
-              <h1 className="docket-reveal font-display text-[clamp(1.65rem,4.4dvh,3.5rem)] leading-[1.04] tracking-tight text-[var(--ink)]">
-                Aturan jelas, moderasi <span className="tape">adil</span>, dan
+              <h1 className="docket-reveal font-display text-[clamp(1.6rem,4.2dvh,3.4rem)] leading-[1.06] tracking-tight text-[var(--ink)]">
+                Aturan jelas, moderasi <span className="tape">adil</span> dan
                 arsip terbuka untuk {communityName}.
               </h1>
             )}
 
             <p
               data-decorative="1"
-              className="docket-reveal line-clamp-3 max-w-2xl text-xs leading-relaxed text-muted-foreground sm:text-sm"
+              className="docket-reveal line-clamp-2 max-w-2xl pb-0.5 text-xs leading-relaxed text-muted-foreground sm:line-clamp-3 sm:text-sm"
             >
               Pantau grup terhubung dalam federasi, telusuri seluruh butir tata
               tertib komunitas, dan ikuti prosedur banding secara transparan
               tanpa mengekspos data pribadi anggota.
             </p>
 
-            <div className="docket-reveal flex flex-wrap items-center gap-2.5">
+            <div className="docket-reveal grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-2.5">
               <Button
-                className="min-h-11 gap-2 rounded-none px-4 sm:min-h-10"
+                className="min-h-11 gap-1.5 rounded-none px-3 text-xs sm:min-h-10 sm:gap-2 sm:px-4 sm:text-sm"
                 onClick={() => onNavigate('/rules')}
               >
-                <BookOpen className="size-4" />
-                Buka halaman aturan
-                <ArrowRight className="size-4" />
+                <BookOpen className="size-4 shrink-0" />
+                <span className="truncate">Halaman aturan</span>
+                <ArrowRight className="hidden size-4 shrink-0 sm:inline" />
               </Button>
               <Button
                 variant="outline"
-                className="min-h-11 gap-2 rounded-none border-[var(--rule-line)] bg-card/80 px-4 sm:min-h-10"
+                className="min-h-11 gap-1.5 rounded-none border-[var(--rule-line)] bg-card/80 px-3 text-xs sm:min-h-10 sm:gap-2 sm:px-4 sm:text-sm"
                 onClick={() => onNavigate('/groups')}
               >
-                <Users className="size-4" />
-                Lihat grup terhubung
+                <Users className="size-4 shrink-0" />
+                <span className="truncate">Grup terhubung</span>
               </Button>
             </div>
 
