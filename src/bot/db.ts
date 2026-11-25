@@ -36,10 +36,35 @@ export function parseDurationSeconds(raw?: string): number | null {
   return seconds;
 }
 
+const UPSERT_COALESCE_TTL_MS = 300_000;
+const USER_COALESCE_MAX = 10_000;
+const CHAT_COALESCE_MAX = 2_048;
+const recentUserUpserts = new Map<number, { sig: string; expiresAt: number }>();
+const recentChatUpserts = new Map<number, { sig: string; expiresAt: number }>();
+
+function setBounded<K, V>(map: Map<K, V>, max: number, key: K, value: V): void {
+  if (map.size >= max) {
+    const oldest = map.keys().next().value;
+    if (oldest !== undefined) map.delete(oldest);
+  }
+  map.set(key, value);
+}
+
 export async function upsertTelegramUser(
   supabase: TypedSupabaseClient,
   user: User,
 ): Promise<void> {
+  const sig = `${user.username ?? ''}\0${user.first_name ?? ''}\0${user.last_name ?? ''}\0${user.language_code ?? ''}\0${Boolean(user.is_premium)}`;
+  const now = Date.now();
+  const cached = recentUserUpserts.get(user.id);
+  if (cached && cached.expiresAt > now && cached.sig === sig) {
+    return;
+  }
+  setBounded(recentUserUpserts, USER_COALESCE_MAX, user.id, {
+    sig,
+    expiresAt: now + UPSERT_COALESCE_TTL_MS,
+  });
+
   await supabase.from('telegram_users').upsert(
     {
       user_id: user.id,
@@ -62,6 +87,16 @@ export async function upsertTelegramChat(
   const title = 'title' in chat ? (chat.title ?? null) : null;
   const username = 'username' in chat ? (chat.username ?? null) : null;
   const isForum = 'is_forum' in chat ? Boolean(chat.is_forum) : false;
+  const sig = `${chat.type}\0${title ?? ''}\0${username ?? ''}\0${isForum}`;
+  const now = Date.now();
+  const cached = recentChatUpserts.get(chat.id);
+  if (cached && cached.expiresAt > now && cached.sig === sig) {
+    return;
+  }
+  setBounded(recentChatUpserts, CHAT_COALESCE_MAX, chat.id, {
+    sig,
+    expiresAt: now + UPSERT_COALESCE_TTL_MS,
+  });
 
   await supabase.from('telegram_chats').upsert(
     {
@@ -166,25 +201,36 @@ export async function resolveUserLocale(
   supabase: TypedSupabaseClient | null,
   userId: number | undefined,
   fallbackLanguageCode?: string,
+  kv?: KVNamespace,
 ): Promise<Locale> {
   if (supabase && userId) {
     const cached = localeCache.get(userId);
     if (cached && cached.expiresAt > Date.now()) {
       return cached.locale;
     }
+    if (kv) {
+      const kvLocale = await kv.get(`locale:${userId}`).catch(() => null);
+      if (kvLocale) {
+        const normalized = normalizeLocale(kvLocale);
+        setCachedUserLocale(userId, normalized);
+        return normalized;
+      }
+    }
     const { data } = await supabase
       .from('user_settings')
       .select('locale')
       .eq('user_id', userId)
       .maybeSingle();
-    if (data?.locale) {
-      const normalized = normalizeLocale(data.locale);
-      setCachedUserLocale(userId, normalized);
-      return normalized;
+    const resolved = data?.locale
+      ? normalizeLocale(data.locale)
+      : normalizeLocale(fallbackLanguageCode);
+    setCachedUserLocale(userId, resolved);
+    if (kv) {
+      void kv
+        .put(`locale:${userId}`, resolved, { expirationTtl: 3600 })
+        .catch(() => {});
     }
-    const fallback = normalizeLocale(fallbackLanguageCode);
-    setCachedUserLocale(userId, fallback);
-    return fallback;
+    return resolved;
   }
   return normalizeLocale(fallbackLanguageCode);
 }

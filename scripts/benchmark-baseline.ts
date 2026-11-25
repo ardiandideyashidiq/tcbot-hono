@@ -284,16 +284,22 @@ async function run() {
   const liveBase = (
     process.env.BENCH_URL ?? 'https://tcbot-hono.tcbot.workers.dev'
   ).replace(/\/+$/, '');
+  const liveRequests = Math.max(1, Number(process.env.LIVE_REQUESTS ?? '40'));
+  const liveConcurrency = Math.max(
+    1,
+    Number(process.env.LIVE_CONCURRENCY ?? '10'),
+  );
   const liveResults: Stats[] = [];
 
-  // Warm up Worker edge route once
+  // Warm up Worker edge route + caches.default once
   await fetch(`${liveBase}/api/health`).catch(() => {});
+  await fetch(`${liveBase}/api/public/overview`).catch(() => {});
 
   liveResults.push(
     await benchConcurrent(
       `live GET ${liveBase}/api/health`,
-      20,
-      4,
+      liveRequests,
+      liveConcurrency,
       async () => {
         const res = await fetch(`${liveBase}/api/health`);
         await res.arrayBuffer();
@@ -305,8 +311,8 @@ async function run() {
   liveResults.push(
     await benchConcurrent(
       `live GET ${liveBase}/api/public/overview`,
-      20,
-      4,
+      liveRequests,
+      liveConcurrency,
       async () => {
         const res = await fetch(`${liveBase}/api/public/overview`);
         await res.arrayBuffer();
@@ -318,8 +324,8 @@ async function run() {
   liveResults.push(
     await benchConcurrent(
       `live GET ${liveBase}/api/ledger/appeals (401 auth gate)`,
-      20,
-      4,
+      liveRequests,
+      liveConcurrency,
       async () => {
         const res = await fetch(
           `${liveBase}/api/ledger/appeals?page=1&limit=10`,
@@ -333,8 +339,8 @@ async function run() {
   liveResults.push(
     await benchConcurrent(
       `live POST ${liveBase}/webhook/telegram (401 guard)`,
-      20,
-      4,
+      liveRequests,
+      liveConcurrency,
       async () => {
         const res = await fetch(`${liveBase}/webhook/telegram`, {
           method: 'POST',

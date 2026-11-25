@@ -21,6 +21,24 @@ const publicApp = new Hono<AppEnv>().get('/overview', async (c) => {
     });
   }
 
+  const edgeCache =
+    typeof caches !== 'undefined' && 'default' in caches
+      ? (caches as unknown as { default: Cache }).default
+      : null;
+  const cacheKey = edgeCache ? new Request(c.req.url, { method: 'GET' }) : null;
+
+  if (edgeCache && cacheKey) {
+    const cached = await edgeCache.match(cacheKey);
+    if (cached) {
+      const headers = new Headers(cached.headers);
+      headers.set('X-Cache', 'HIT');
+      return new Response(cached.body, {
+        status: cached.status,
+        headers,
+      });
+    }
+  }
+
   const supabase = createSupabaseAdmin(c.env);
 
   const [groupsRes, versionRes, resolvedAppealsRes, activeModerationsRes] =
@@ -98,8 +116,7 @@ const publicApp = new Hono<AppEnv>().get('/overview', async (c) => {
     };
   });
 
-  c.header('Cache-Control', 'public, max-age=15, stale-while-revalidate=60');
-  return c.json({
+  const payload = {
     configured: true,
     communityName,
     stats: {
@@ -110,7 +127,26 @@ const publicApp = new Hono<AppEnv>().get('/overview', async (c) => {
     },
     rules,
     groups,
+  };
+
+  const response = new Response(JSON.stringify(payload), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json; charset=UTF-8',
+      'Cache-Control': 'public, max-age=15, stale-while-revalidate=60',
+      'X-Cache': 'MISS',
+    },
   });
+
+  if (edgeCache && cacheKey) {
+    try {
+      c.executionCtx.waitUntil(edgeCache.put(cacheKey, response.clone()));
+    } catch {
+      await edgeCache.put(cacheKey, response.clone());
+    }
+  }
+
+  return response;
 });
 
 export default publicApp;

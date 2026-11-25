@@ -83,6 +83,7 @@ export function createBot(env: CloudflareBindings): Bot<BotContext> {
       supabase,
       ctx.from?.id,
       ctx.from?.language_code,
+      env.BOT_CACHE,
     );
 
     await next();

@@ -195,6 +195,11 @@ generalComposer.callbackQuery(/^lang:set:(en-US|id-ID)$/, async (ctx) => {
 
   if (ctx.supabase && ctx.from) {
     setCachedUserLocale(ctx.from.id, nextLocale);
+    if (ctx.appEnv.BOT_CACHE) {
+      void ctx.appEnv.BOT_CACHE.put(`locale:${ctx.from.id}`, nextLocale, {
+        expirationTtl: 3600,
+      }).catch(() => {});
+    }
     await ctx.supabase.from('user_settings').upsert(
       {
         user_id: ctx.from.id,

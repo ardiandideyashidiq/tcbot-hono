@@ -11,6 +11,12 @@
   "placement": {
     "mode": "smart"
   },
+  "kv_namespaces": [
+    {
+      "binding": "BOT_CACHE",
+      "id": "16490216a5de4c318fa651e076d20f83"
+    }
+  ],
   "observability": {
     "enabled": true,
     "logs": {
