@@ -7,8 +7,10 @@ import {
   Sun,
   Users,
 } from 'lucide-react';
-import type { MouseEvent, ReactNode } from 'react';
+import { type MouseEvent, type ReactNode, useRef } from 'react';
 import { Button } from '@/components/ui/button';
+import { useViewportFit } from '../hooks/use-viewport-fit';
+import { PublicFooter } from './PublicFooter';
 
 export type PublicRoute = '/' | '/rules' | '/groups';
 
@@ -43,27 +45,27 @@ export function PublicShell({
   onNavigate,
   children,
 }: PublicShellProps) {
-  return (
-    <div className="relative min-h-dvh overflow-x-clip bg-background text-foreground">
-      {/* Ambient radial aurora backdrop */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-96 bg-[radial-gradient(ellipse_80%_55%_at_50%_-10%,rgba(37,99,235,0.16),transparent)] dark:bg-[radial-gradient(ellipse_80%_55%_at_50%_-10%,rgba(59,130,246,0.22),transparent)]"
-      />
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  useViewportFit(stageRef, currentRoute);
 
-      <header className="sticky top-0 z-30 border-b border-border/80 bg-background/85 backdrop-blur-md">
-        <div className="mx-auto flex w-full max-w-[1480px] items-center justify-between gap-3 px-4 py-3 sm:px-6 md:grid md:grid-cols-[1fr_auto_1fr] lg:px-10">
+  return (
+    <div className="public-scope relative grid h-dvh grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-[var(--paper)] text-[var(--ink)]">
+      {/* Subtle paper grain overlay + single horizon hairline */}
+      <div aria-hidden="true" className="paper-grain fixed inset-0 z-0" />
+
+      <header className="relative z-30 shrink-0 border-b border-[var(--rule-line)] bg-[var(--paper)]/95">
+        <div className="mx-auto flex w-full max-w-[1480px] items-center justify-between gap-2 px-4 py-2 sm:px-6 md:grid md:grid-cols-[1fr_auto_1fr] lg:px-10">
           <button
             type="button"
             onClick={() => onNavigate('/')}
-            className="justify-self-start text-left text-base font-bold tracking-tight text-foreground transition-opacity hover:opacity-80"
+            className="min-h-0 justify-self-start truncate text-left text-base font-bold tracking-tight text-[var(--ink)] transition-opacity hover:opacity-80"
           >
             {communityName}
           </button>
 
           <nav
             aria-label="Navigasi publik"
-            className="hidden items-center gap-1 justify-self-center rounded-xl border border-border/70 bg-muted/40 p-1 md:flex"
+            className="hidden items-center gap-1 justify-self-center border border-[var(--rule-line)] bg-background/60 p-0.5 md:flex"
           >
             {NAV_LINKS.map((link) => {
               const Icon = link.icon;
@@ -73,10 +75,10 @@ export function PublicShell({
                   key={link.route}
                   type="button"
                   onClick={() => onNavigate(link.route)}
-                  className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                  className={`inline-flex min-h-8 items-center gap-1.5 px-3 py-1 text-xs font-medium transition-colors ${
                     active
-                      ? 'bg-background text-foreground shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground'
+                      ? 'bg-[var(--ink)] text-[var(--paper)]'
+                      : 'text-muted-foreground hover:text-[var(--ink)]'
                   }`}
                 >
                   <Icon className="size-3.5" />
@@ -86,11 +88,11 @@ export function PublicShell({
             })}
           </nav>
 
-          <div className="flex items-center gap-1.5 justify-self-end sm:gap-2">
+          <div className="flex items-center gap-1 justify-self-end sm:gap-1.5">
             <Button
               variant="ghost"
               size="icon"
-              className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
+              className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
               aria-label="Muat ulang data"
               onClick={onRefresh}
               disabled={loading}
@@ -102,7 +104,7 @@ export function PublicShell({
             <Button
               variant="ghost"
               size="icon"
-              className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
+              className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
               aria-label={
                 darkMode ? 'Aktifkan mode terang' : 'Aktifkan mode gelap'
               }
@@ -116,7 +118,7 @@ export function PublicShell({
             </Button>
             <Button
               size="sm"
-              className="min-h-11 gap-1.5 px-3.5 sm:min-h-9"
+              className="min-h-11 gap-1.5 px-3 sm:min-h-8"
               onClick={() => onNavigate('/admin')}
             >
               <Lock className="size-3.5" />
@@ -125,10 +127,10 @@ export function PublicShell({
           </div>
         </div>
 
-        {/* Mobile sub-navigation bar */}
+        {/* Mobile compact sub-navigation bar */}
         <nav
           aria-label="Navigasi publik mobile"
-          className="flex items-center gap-1 overflow-x-auto border-t border-border/60 px-4 py-2 md:hidden"
+          className="flex items-center gap-1 overflow-x-auto border-t border-[var(--rule-line)] px-4 py-1.5 md:hidden"
         >
           {NAV_LINKS.map((link) => {
             const Icon = link.icon;
@@ -138,10 +140,10 @@ export function PublicShell({
                 key={link.route}
                 type="button"
                 onClick={() => onNavigate(link.route)}
-                className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 border px-3 py-1 text-xs font-medium transition-colors ${
                   active
-                    ? 'bg-primary text-primary-foreground shadow-xs'
-                    : 'bg-muted/50 text-muted-foreground hover:text-foreground'
+                    ? 'border-[var(--ink)] bg-[var(--ink)] text-[var(--paper)]'
+                    : 'border-[var(--rule-line)] bg-background/50 text-muted-foreground hover:text-[var(--ink)]'
                 }`}
               >
                 <Icon className="size-3.5" />
@@ -152,9 +154,17 @@ export function PublicShell({
         </nav>
       </header>
 
-      <main className="mx-auto flex w-full max-w-[1480px] flex-col gap-8 px-4 py-6 sm:gap-10 sm:px-6 sm:py-8 lg:px-10 lg:py-10">
-        {children}
+      <main className="relative z-10 min-h-0 flex-1 overflow-hidden">
+        <div
+          ref={stageRef}
+          data-density="normal"
+          className="public-scope relative mx-auto flex h-full min-h-0 w-full max-w-[1480px] flex-col overflow-hidden px-4 py-3 sm:px-6 sm:py-4 lg:px-10 lg:py-5"
+        >
+          {children}
+        </div>
       </main>
+
+      <PublicFooter communityName={communityName} onNavigate={onNavigate} />
     </div>
   );
 }

@@ -6,6 +6,7 @@
 
 @theme inline {
   --font-heading: var(--font-sans);
+  --font-display: "Instrument Serif", ui-serif, Georgia, serif;
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   --color-sidebar-ring: var(--sidebar-ring);
@@ -214,6 +215,145 @@
     transition:
       background-color 220ms ease,
       color 220ms ease,
+      border-color 220ms ease;
+  }
+}
+
+/* ==========================================================================
+   Public Docket Scope ("Arsip & Pita") — isolated from Admin Console
+   ========================================================================== */
+
+.public-scope {
+  --paper: #faf7f0;
+  --ink: #111827;
+  --rule-line: rgba(15, 23, 42, 0.12);
+  --tape-blue: #dce8ff;
+  --tape-crimson: #fde2e7;
+  --grain-opacity: 0.035;
+}
+
+.dark .public-scope {
+  --paper: #0e131e;
+  --ink: #f3f4f6;
+  --rule-line: rgba(226, 232, 240, 0.13);
+  --tape-blue: #172a4d;
+  --tape-crimson: #3b1522;
+  --grain-opacity: 0.045;
+}
+
+.public-scope .paper-grain {
+  pointer-events: none;
+  opacity: var(--grain-opacity);
+  background-image:
+    radial-gradient(circle at 18% 24%, var(--ink) 0.55px, transparent 0.7px),
+    radial-gradient(circle at 72% 68%, var(--ink) 0.5px, transparent 0.65px),
+    radial-gradient(circle at 46% 88%, var(--ink) 0.45px, transparent 0.6px);
+  background-size:
+    19px 19px,
+    27px 27px,
+    33px 33px;
+}
+
+.public-scope .ledger-rule {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 27px,
+    var(--rule-line) 27px,
+    var(--rule-line) 28px
+  );
+}
+
+.public-scope .spine-text {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+.public-scope .tape {
+  position: relative;
+  display: inline-block;
+  padding-inline: 0.55rem;
+  padding-block: 0.1rem;
+  background-color: var(--tape-blue);
+  color: var(--ink);
+  transform: rotate(-1.5deg);
+  clip-path: polygon(
+    2% 0%,
+    98% 2%,
+    100% 25%,
+    97% 50%,
+    100% 78%,
+    98% 100%,
+    1% 98%,
+    0% 72%,
+    2% 46%,
+    0% 20%
+  );
+}
+
+.public-scope .tape-crimson {
+  background-color: var(--tape-crimson);
+  transform: rotate(1.2deg);
+}
+
+.public-scope .ticket-edge {
+  clip-path: polygon(
+    10px 0%,
+    calc(100% - 10px) 0%,
+    100% 10px,
+    100% calc(100% - 10px),
+    calc(100% - 10px) 100%,
+    10px 100%,
+    0% calc(100% - 10px),
+    0% 10px
+  );
+}
+
+@supports not (clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%)) {
+  .public-scope .tape {
+    border-radius: 0.2rem;
+  }
+  .public-scope .ticket-edge {
+    border-radius: 0.75rem;
+  }
+}
+
+.public-scope .stamp {
+  border: 2px double currentColor;
+  transform: rotate(-6deg);
+}
+
+.public-scope :is(button, a, [tabindex]):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+
+.public-scope[data-density="tight"] {
+  --docket-pad: 0.875rem;
+  --docket-gap: 0.75rem;
+}
+
+.public-scope[data-density="tightest"] {
+  --docket-pad: 0.625rem;
+  --docket-gap: 0.5rem;
+}
+
+.public-scope[data-density="tight"] [data-decorative="1"],
+.public-scope[data-density="tightest"] [data-decorative="1"],
+.public-scope[data-density="tightest"] [data-decorative="2"] {
+  display: none;
+}
+
+.public-scope .docket-scroll {
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .public-scope .docket-fan-card {
+    transition:
+      transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 220ms ease,
       border-color 220ms ease;
   }
 }
