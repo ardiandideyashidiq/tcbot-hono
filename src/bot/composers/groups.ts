@@ -134,6 +134,92 @@ groupsComposer.command(['tcgroups', 'tcg'], async (ctx) => {
   });
 });
 
+groupsComposer.command(['broadcast', 'tcbroadcast'], async (ctx) => {
+  const isId = ctx.locale === 'id-ID';
+  const role = await getUserRole(
+    ctx.supabase,
+    ctx.from?.id ?? 0,
+    ctx.appEnv.OWNER_ID,
+  );
+  if (!isAdminOrOwner(role)) {
+    await ctx.reply(t(ctx.locale, 'err.admin_only'));
+    return;
+  }
+
+  const messageText = (ctx.match ?? '').trim();
+  if (messageText.length < 3) {
+    const usage = fmt`${b}${isId ? 'Cara Menggunakan Broadcast' : 'How to Broadcast'}${b}
+Format: /broadcast ${code}<pesan pengumuman>${code}`;
+    await ctx.reply(usage.text, { entities: usage.entities });
+    return;
+  }
+
+  const groups = await loadConnectedGroups(ctx);
+  if (groups.length === 0) {
+    await ctx.reply(
+      isId
+        ? 'Belum ada grup aktif yang terhubung untuk menerima broadcast.'
+        : 'No active connected groups available to broadcast to.',
+    );
+    return;
+  }
+
+  let campaignId: number | null = null;
+  if (ctx.supabase) {
+    const { data: campaign } = await ctx.supabase
+      .from('broadcast_campaigns')
+      .insert({
+        requested_by_user_id: ctx.from?.id ?? null,
+        message_text: messageText,
+        status: 'running',
+        started_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single();
+    campaignId = campaign?.id ?? null;
+  }
+
+  const broadcastFormatted = fmt`${b}📢 ${
+    isId ? 'Pengumuman Komunitas' : 'Community Announcement'
+  }${b}
+
+${messageText}`;
+
+  const results = await Promise.allSettled(
+    groups.map((g) =>
+      ctx.api.sendMessage(g.chatId, broadcastFormatted.text, {
+        entities: broadcastFormatted.entities,
+      }),
+    ),
+  );
+
+  let sentCount = 0;
+  let failedCount = 0;
+  for (const r of results) {
+    if (r.status === 'fulfilled') sentCount += 1;
+    else failedCount += 1;
+  }
+
+  if (ctx.supabase && campaignId !== null) {
+    await ctx.supabase
+      .from('broadcast_campaigns')
+      .update({
+        status: failedCount === groups.length ? 'failed' : 'completed',
+        finished_at: new Date().toISOString(),
+        failed_count: failedCount,
+      })
+      .eq('id', campaignId);
+  }
+
+  const summary = fmt`${b}${
+    isId ? '📢 Broadcast Selesai' : '📢 Broadcast Complete'
+  }${b}
+${b}${isId ? 'Terkirim' : 'Delivered'}:${b} ${code}${String(sentCount)}${code}
+${b}${isId ? 'Gagal' : 'Failed'}:${b} ${code}${String(failedCount)}${code}`;
+
+  await ctx.reply(summary.text, { entities: summary.entities });
+});
+
 groupsComposer.callbackQuery('nav:groups', async (ctx) => {
   const role = await getUserRole(
     ctx.supabase,

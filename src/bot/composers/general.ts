@@ -1,4 +1,5 @@
-import { Composer } from 'grammy';
+import { b, fmt } from '@grammyjs/parse-mode';
+import { Composer, InlineKeyboard } from 'grammy';
 import type { BotContext } from '../context';
 import { getUserRole, isAdminOrOwner, setCachedUserLocale } from '../db';
 import { t } from '../i18n';
@@ -56,6 +57,76 @@ generalComposer.command('ping', async (ctx) => {
 generalComposer.command(['language', 'lang'], async (ctx) => {
   const { formatted, keyboard } = buildLanguageCard(ctx.locale);
   await ctx.reply(formatted.text, {
+    entities: formatted.entities,
+    reply_markup: keyboard,
+  });
+});
+
+function buildPrivacyContent(locale: string) {
+  const isId = locale === 'id-ID';
+  const formatted = fmt`${b}${isId ? '🔒 Kebijakan Privasi Bot' : '🔒 Bot Privacy Policy'}${b}
+${
+  isId
+    ? 'Bot ini menyimpan data minimal untuk menjalankan moderasi lintas grup: ID Telegram, nama tampilan, username, preferensi bahasa, catatan sanksi/peringatan, serta banding yang Anda kirimkan.'
+    : 'This bot stores minimal data required for cross-group moderation: Telegram user ID, display name, username, language preference, moderation/warning history, and appeals you submit.'
+}`;
+  const keyboard = new InlineKeyboard()
+    .text(isId ? '🏠 Menu Utama' : '🏠 Main Menu', 'nav:start')
+    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
+  return { formatted, keyboard };
+}
+
+function buildAboutContent(locale: string, communityName: string) {
+  const isId = locale === 'id-ID';
+  const formatted = fmt`${b}${isId ? `ℹ️ Tentang ${communityName}` : `ℹ️ About ${communityName}`}${b}
+${
+  isId
+    ? 'Bot moderasi federasi berbasis Cloudflare Workers, Hono, grammY, dan Supabase untuk menjaga tata tertib komunitas secara konsisten.'
+    : 'A federation moderation bot built on Cloudflare Workers, Hono, grammY, and Supabase to enforce community rules consistently.'
+}`;
+  const keyboard = new InlineKeyboard()
+    .text(isId ? '📜 Aturan' : '📜 Rules', 'nav:help')
+    .text(isId ? '🔒 Privasi' : '🔒 Privacy', 'nav:privacy')
+    .row()
+    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
+  return { formatted, keyboard };
+}
+
+generalComposer.command('privacy', async (ctx) => {
+  const { formatted, keyboard } = buildPrivacyContent(ctx.locale);
+  await ctx.reply(formatted.text, {
+    entities: formatted.entities,
+    reply_markup: keyboard,
+  });
+});
+
+generalComposer.command('about', async (ctx) => {
+  const { formatted, keyboard } = buildAboutContent(
+    ctx.locale,
+    ctx.appEnv.COMMUNITY_NAME || 'tcbot',
+  );
+  await ctx.reply(formatted.text, {
+    entities: formatted.entities,
+    reply_markup: keyboard,
+  });
+});
+
+generalComposer.callbackQuery('nav:privacy', async (ctx) => {
+  await ctx.answerCallbackQuery();
+  const { formatted, keyboard } = buildPrivacyContent(ctx.locale);
+  await ctx.editMessageText(formatted.text, {
+    entities: formatted.entities,
+    reply_markup: keyboard,
+  });
+});
+
+generalComposer.callbackQuery('nav:about', async (ctx) => {
+  await ctx.answerCallbackQuery();
+  const { formatted, keyboard } = buildAboutContent(
+    ctx.locale,
+    ctx.appEnv.COMMUNITY_NAME || 'tcbot',
+  );
+  await ctx.editMessageText(formatted.text, {
     entities: formatted.entities,
     reply_markup: keyboard,
   });

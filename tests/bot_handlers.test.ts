@@ -353,5 +353,22 @@ describe('Telegram Bot MVP end-to-end command handlers', () => {
     expect(String(sentMessages()[4]?.payload.text)).toContain(
       'Cara Mengajukan Banding',
     );
+
+    await bot.handleUpdate(makeMessageUpdate('/privacy'));
+    expect(String(sentMessages()[5]?.payload.text)).toContain('Privasi');
+
+    await bot.handleUpdate(makeMessageUpdate('/about'));
+    expect(String(sentMessages()[6]?.payload.text)).toContain('Tentang');
+
+    await bot.handleUpdate(
+      makeMessageUpdate('/broadcast Halo semua', {
+        userId: 2002,
+        chatId: -10012345,
+        chatType: 'supergroup',
+      }),
+    );
+    expect(String(sentMessages()[7]?.payload.text)).toContain(
+      'admin atau owner',
+    );
   });
 });
