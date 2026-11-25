@@ -14,4 +14,22 @@ export default defineConfig({
       '@': path.resolve(import.meta.dirname, './src'),
     },
   },
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            {
+              name: 'react-vendor',
+              test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+            },
+            {
+              name: 'ui-vendor',
+              test: /node_modules[\\/](@base-ui|lucide-react|sonner|vaul)[\\/]/,
+            },
+          ],
+        },
+      },
+    },
+  },
 });
