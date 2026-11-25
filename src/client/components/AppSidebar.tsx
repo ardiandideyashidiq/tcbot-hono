@@ -4,6 +4,7 @@ import {
   Gavel,
   MessageSquareWarning,
   ShieldCheck,
+  UserCog,
   Users,
 } from 'lucide-react';
 import {
@@ -24,6 +25,7 @@ interface AppSidebarProps {
   activeSection: LedgerSection;
   onSelectSection: (section: LedgerSection) => void;
   pendingCount: number;
+  isSuperadmin: boolean;
 }
 
 const NAV_ITEMS: Array<{
@@ -43,8 +45,16 @@ export function AppSidebar({
   activeSection,
   onSelectSection,
   pendingCount,
+  isSuperadmin,
 }: AppSidebarProps) {
   const { isMobile, setOpenMobile } = useSidebar();
+
+  const items = isSuperadmin
+    ? [
+        ...NAV_ITEMS,
+        { id: 'admins' as const, label: 'Kelola Admin', icon: UserCog },
+      ]
+    : NAV_ITEMS;
 
   const handleSelect = (section: LedgerSection) => {
     onSelectSection(section);
@@ -62,7 +72,7 @@ export function AppSidebar({
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1.5">
-              {NAV_ITEMS.map((item) => {
+              {items.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeSection === item.id;
                 return (

@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'bun:test';
 import { testClient } from 'hono/testing';
 import { app } from '../src/index';
-import { getSessionSecret, signAdminSession } from '../src/lib/auth';
+import {
+  getSessionSecret,
+  hashPassword,
+  signAdminSession,
+  verifyPassword,
+} from '../src/lib/auth';
 import { expireDueModerationActions } from '../src/lib/telegram-sync';
 
 const baseEnv = {
@@ -159,7 +164,49 @@ describe('tcbot-hono foundation routes', () => {
       configured: true,
       authenticated: true,
       username: 'admin',
+      role: 'superadmin',
     });
+  });
+
+  it('PBKDF2 password hashing verifies matching passwords and /api/admin/users enforces superadmin RBAC', async () => {
+    const hash = await hashPassword('secret_pass_123');
+    expect(hash.startsWith('pbkdf2_sha256$')).toBe(true);
+    expect(await verifyPassword('secret_pass_123', hash)).toBe(true);
+    expect(await verifyPassword('wrong_pass', hash)).toBe(false);
+
+    const secret = getSessionSecret(baseEnv);
+    if (!secret) throw new Error('Expected test secret');
+
+    const adminToken = await signAdminSession(
+      { id: 0, username: 'mod1', role: 'admin', ver: 1 },
+      secret,
+    );
+    const forbiddenRes = await app.request(
+      '/api/admin/users',
+      {
+        headers: {
+          Cookie: `tcbot_admin_session=${encodeURIComponent(adminToken)}`,
+        },
+      },
+      baseEnv,
+    );
+    expect(forbiddenRes.status).toBe(403);
+
+    const superToken = await signAdminSession(
+      { id: 0, username: 'admin', role: 'superadmin', ver: 1 },
+      secret,
+    );
+    const allowedRes = await app.request(
+      '/api/admin/users',
+      {
+        headers: {
+          Cookie: `tcbot_admin_session=${encodeURIComponent(superToken)}`,
+        },
+      },
+      baseEnv,
+    );
+    expect(allowedRes.status).toBe(200);
+    expect(await allowedRes.json()).toEqual({ configured: false, items: [] });
   });
 
   it('POST /api/auth/login enforces same-origin CSRF check and brute-force rate limiting', async () => {

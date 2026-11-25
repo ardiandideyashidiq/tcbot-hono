@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import type { AppEnv } from './lib/env';
 import { expireDueModerationActions } from './lib/telegram-sync';
+import adminUsersApp from './routes/admin-users';
 import authApp from './routes/auth';
 import healthApp from './routes/health';
 import ledgerApp from './routes/ledger';
@@ -15,7 +16,8 @@ const app = new Hono<AppEnv>()
     c.header('Referrer-Policy', 'no-referrer');
     if (
       c.req.path.startsWith('/api/auth/') ||
-      c.req.path.startsWith('/api/ledger/')
+      c.req.path.startsWith('/api/ledger/') ||
+      c.req.path.startsWith('/api/admin/')
     ) {
       c.header('Cache-Control', 'no-store');
     }
@@ -42,6 +44,7 @@ const app = new Hono<AppEnv>()
     return c.text('Not Found', 404);
   })
   .route('/api/auth', authApp)
+  .route('/api/admin/users', adminUsersApp)
   .route('/api/public', publicApp)
   .route('/api/health', healthApp)
   .route('/api/ledger', ledgerApp)

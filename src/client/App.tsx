@@ -1,5 +1,6 @@
 import {
   Globe,
+  KeyRound,
   Loader2,
   LogOut,
   Moon,
@@ -61,6 +62,10 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/use-mobile';
+import {
+  type AdminAccountRow,
+  AdminAccountsPanel,
+} from './components/AdminAccountsPanel';
 import { AdminLogin } from './components/AdminLogin';
 import { AppSidebar } from './components/AppSidebar';
 import { CaseDossier } from './components/CaseDossier';
@@ -90,6 +95,7 @@ const SECTION_TITLES: Record<LedgerSection, string> = {
   groups: 'Grup terhubung',
   rules: 'Aturan komunitas',
   staff: 'Staf dan peran',
+  admins: 'Kelola akun admin',
 };
 
 const STATUS_LABELS: Record<CaseStatus, string> = {
@@ -100,6 +106,8 @@ const STATUS_LABELS: Record<CaseStatus, string> = {
 };
 
 interface AdminConsoleProps {
+  adminUsername: string;
+  adminRole: 'superadmin' | 'admin';
   darkMode: boolean;
   onToggleTheme: (event: MouseEvent<HTMLButtonElement>) => void;
   onLogout: () => void;
@@ -108,6 +116,8 @@ interface AdminConsoleProps {
 }
 
 function AdminConsole({
+  adminUsername,
+  adminRole,
   darkMode,
   onToggleTheme,
   onLogout,
@@ -123,6 +133,11 @@ function AdminConsole({
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [rules, setRules] = useState<RuleRow[]>([]);
   const [staff, setStaff] = useState<StaffRow[]>([]);
+  const [adminAccounts, setAdminAccounts] = useState<AdminAccountRow[]>([]);
+  const [pwDialogOpen, setPwDialogOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [savingPassword, setSavingPassword] = useState(false);
 
   const [loadingSection, setLoadingSection] = useState(false);
   const [page, setPage] = useState(1);
@@ -209,10 +224,23 @@ function AdminConsole({
           setPagination(data.pagination);
         } else if (section === 'staff') {
           const res = await api.api.ledger.staff.$get({ query });
+          if (res.status === 401) {
+            onUnauthorized();
+            return;
+          }
           if (!res.ok) throw new Error('Gagal memuat daftar staf');
           const data = await res.json();
           setStaff(data.items);
           setPagination(data.pagination);
+        } else if (section === 'admins') {
+          const res = await api.api.admin.users.$get();
+          if (res.status === 401) {
+            onUnauthorized();
+            return;
+          }
+          if (!res.ok) throw new Error('Gagal memuat daftar admin');
+          const data = await res.json();
+          setAdminAccounts(data.items);
         }
       } catch (err) {
         toast('Gagal memuat data', {
@@ -437,6 +465,113 @@ function AdminConsole({
     }
   };
 
+  const handleCreateAdmin = async (input: {
+    username: string;
+    displayName: string;
+    password: string;
+  }): Promise<boolean> => {
+    try {
+      const res = await api.api.admin.users.$post({ json: input });
+      if (!res.ok) {
+        const errBody = (await res.json().catch(() => ({}))) as {
+          message?: string;
+        };
+        throw new Error(errBody.message ?? 'Gagal membuat akun admin');
+      }
+      const data = await res.json();
+      setAdminAccounts((prev) => [...prev, data.item]);
+      triggerHaptic('success');
+      toast('Akun admin dibuat', {
+        description: `${data.item.username} ditambahkan sebagai admin.`,
+      });
+      return true;
+    } catch (err) {
+      triggerHaptic('error');
+      toast('Gagal membuat akun admin', {
+        description:
+          err instanceof Error ? err.message : 'Terjadi kesalahan server.',
+      });
+      return false;
+    }
+  };
+
+  const handleToggleAdminActive = async (id: number, nextActive: boolean) => {
+    try {
+      const res = await api.api.admin.users[':id'].$patch({
+        param: { id: String(id) },
+        json: { isActive: nextActive },
+      });
+      if (!res.ok) throw new Error('Gagal mengubah status akun');
+      const data = await res.json();
+      setAdminAccounts((prev) =>
+        prev.map((a) => (a.id === id ? data.item : a)),
+      );
+      triggerHaptic('success');
+      toast(nextActive ? 'Akun diaktifkan' : 'Akun dinonaktifkan');
+    } catch (err) {
+      triggerHaptic('error');
+      toast('Gagal mengubah status akun', {
+        description:
+          err instanceof Error ? err.message : 'Terjadi kesalahan server.',
+      });
+    }
+  };
+
+  const handleResetAdminPassword = async (
+    id: number,
+    nextPw: string,
+  ): Promise<boolean> => {
+    try {
+      const res = await api.api.admin.users[':id'].$patch({
+        param: { id: String(id) },
+        json: { newPassword: nextPw },
+      });
+      if (!res.ok) throw new Error('Gagal mereset kata sandi');
+      triggerHaptic('success');
+      toast('Kata sandi admin direset');
+      return true;
+    } catch (err) {
+      triggerHaptic('error');
+      toast('Gagal mereset kata sandi', {
+        description:
+          err instanceof Error ? err.message : 'Terjadi kesalahan server.',
+      });
+      return false;
+    }
+  };
+
+  const handleChangeOwnPassword = async () => {
+    if (!currentPassword || newPassword.length < 8) {
+      toast('Kata sandi baru minimal 8 karakter');
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      const res = await api.api.auth.password.$post({
+        json: { currentPassword, newPassword },
+      });
+      if (!res.ok) {
+        const errBody = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(errBody.error ?? 'Gagal mengganti kata sandi');
+      }
+      setPwDialogOpen(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      triggerHaptic('success');
+      toast('Kata sandi diperbarui');
+    } catch (err) {
+      triggerHaptic('error');
+      toast('Gagal mengganti kata sandi', {
+        description:
+          err instanceof Error ? err.message : 'Terjadi kesalahan server.',
+      });
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
   return (
     <TooltipProvider>
       <SidebarProvider>
@@ -445,6 +580,7 @@ function AdminConsole({
             activeSection={activeSection}
             onSelectSection={handleSelectSection}
             pendingCount={pendingCount}
+            isSuperadmin={adminRole === 'superadmin'}
           />
 
           <SidebarInset className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
@@ -496,6 +632,14 @@ function AdminConsole({
                   onClick={onNavigatePublic}
                 >
                   <Globe className="size-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Ganti kata sandi"
+                  onClick={() => setPwDialogOpen(true)}
+                >
+                  <KeyRound className="size-4" />
                 </Button>
                 <Button
                   variant="ghost"
@@ -738,13 +882,24 @@ function AdminConsole({
                     {activeSection === 'staff' && (
                       <StaffTable items={staff} loading={loadingSection} />
                     )}
+                    {activeSection === 'admins' && (
+                      <AdminAccountsPanel
+                        items={adminAccounts}
+                        loading={loadingSection}
+                        onCreateAdmin={handleCreateAdmin}
+                        onToggleActive={handleToggleAdminActive}
+                        onResetPassword={handleResetAdminPassword}
+                      />
+                    )}
                   </div>
 
-                  <PaginationBar
-                    pagination={pagination}
-                    disabled={loadingSection}
-                    onPageChange={setPage}
-                  />
+                  {activeSection !== 'admins' && (
+                    <PaginationBar
+                      pagination={pagination}
+                      disabled={loadingSection}
+                      onPageChange={setPage}
+                    />
+                  )}
                 </section>
               )}
             </div>
@@ -866,6 +1021,65 @@ function AdminConsole({
           </DialogContent>
         </Dialog>
 
+        <Dialog open={pwDialogOpen} onOpenChange={setPwDialogOpen}>
+          <DialogContent className="max-w-sm p-6">
+            <DialogHeader className="gap-1.5">
+              <DialogTitle>Ganti kata sandi ({adminUsername})</DialogTitle>
+              <DialogDescription>
+                Masukkan kata sandi saat ini dan kata sandi baru minimal 8
+                karakter.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-4 py-2">
+              <div className="flex flex-col gap-1.5">
+                <label
+                  htmlFor="own-current-pw"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Kata sandi saat ini
+                </label>
+                <Input
+                  id="own-current-pw"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="••••••••"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label
+                  htmlFor="own-new-pw"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Kata sandi baru
+                </label>
+                <Input
+                  id="own-new-pw"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+            <DialogFooter className="mt-2">
+              <Button
+                variant="outline"
+                onClick={() => setPwDialogOpen(false)}
+                disabled={savingPassword}
+              >
+                Batal
+              </Button>
+              <Button
+                onClick={() => void handleChangeOwnPassword()}
+                disabled={savingPassword}
+              >
+                {savingPassword ? 'Menyimpan...' : 'Simpan sandi'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <Toaster />
       </SidebarProvider>
     </TooltipProvider>
@@ -884,6 +1098,10 @@ export function App() {
   const [sessionState, setSessionState] = useState<
     'checking' | 'authenticated' | 'unauthenticated'
   >('checking');
+  const [adminIdentity, setAdminIdentity] = useState<{
+    username: string;
+    role: 'superadmin' | 'admin';
+  }>({ username: 'admin', role: 'admin' });
 
   useEffect(() => {
     const scheme = initTelegramMiniApp();
@@ -924,7 +1142,15 @@ export function App() {
         return;
       }
       const data = await res.json();
-      setSessionState(data.authenticated ? 'authenticated' : 'unauthenticated');
+      if (data.authenticated && data.username) {
+        setAdminIdentity({
+          username: data.username,
+          role: data.role === 'superadmin' ? 'superadmin' : 'admin',
+        });
+        setSessionState('authenticated');
+      } else {
+        setSessionState('unauthenticated');
+      }
     } catch {
       setSessionState('unauthenticated');
     }
@@ -1019,7 +1245,10 @@ export function App() {
     return (
       <>
         <AdminLogin
-          onSuccess={() => setSessionState('authenticated')}
+          onSuccess={(identity) => {
+            setAdminIdentity(identity);
+            setSessionState('authenticated');
+          }}
           onBackPublic={() => navigate('/')}
         />
         <Toaster />
@@ -1029,6 +1258,8 @@ export function App() {
 
   return (
     <AdminConsole
+      adminUsername={adminIdentity.username}
+      adminRole={adminIdentity.role}
       darkMode={darkMode}
       onToggleTheme={handleToggleTheme}
       onLogout={() => void handleLogout()}

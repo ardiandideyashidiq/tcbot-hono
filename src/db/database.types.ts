@@ -14,6 +14,66 @@ export type Database = {
   };
   public: {
     Tables: {
+      admin_accounts: {
+        Row: {
+          created_at: string;
+          created_by_admin_id: number | null;
+          display_name: string;
+          id: number;
+          is_active: boolean;
+          last_login_at: string | null;
+          password_hash: string;
+          role: string;
+          telegram_user_id: number | null;
+          token_version: number;
+          updated_at: string;
+          username: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by_admin_id?: number | null;
+          display_name: string;
+          id?: never;
+          is_active?: boolean;
+          last_login_at?: string | null;
+          password_hash: string;
+          role?: string;
+          telegram_user_id?: number | null;
+          token_version?: number;
+          updated_at?: string;
+          username: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by_admin_id?: number | null;
+          display_name?: string;
+          id?: never;
+          is_active?: boolean;
+          last_login_at?: string | null;
+          password_hash?: string;
+          role?: string;
+          telegram_user_id?: number | null;
+          token_version?: number;
+          updated_at?: string;
+          username?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'admin_accounts_created_by_admin_id_fkey';
+            columns: ['created_by_admin_id'];
+            isOneToOne: false;
+            referencedRelation: 'admin_accounts';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'admin_accounts_telegram_user_id_fkey';
+            columns: ['telegram_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'telegram_users';
+            referencedColumns: ['user_id'];
+          },
+        ];
+      };
       audit_events: {
         Row: {
           action_id: number | null;

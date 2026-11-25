@@ -4,7 +4,8 @@ export type LedgerSection =
   | 'warns'
   | 'groups'
   | 'rules'
-  | 'staff';
+  | 'staff'
+  | 'admins';
 
 export type CaseStatus = 'pending' | 'locked' | 'approved' | 'rejected';
 export type RuleTier = 'Ringan' | 'Sedang' | 'Berat' | 'Sangat berat';

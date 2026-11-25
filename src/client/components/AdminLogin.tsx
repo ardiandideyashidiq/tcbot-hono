@@ -5,7 +5,10 @@ import { Input } from '@/components/ui/input';
 import { api } from '../lib/api';
 
 interface AdminLoginProps {
-  onSuccess: (username: string) => void;
+  onSuccess: (session: {
+    username: string;
+    role: 'superadmin' | 'admin';
+  }) => void;
   onBackPublic: () => void;
 }
 
@@ -32,6 +35,7 @@ export function AdminLogin({ onSuccess, onBackPublic }: AdminLoginProps) {
       const payload = (await res.json()) as {
         ok?: boolean;
         username?: string;
+        role?: 'superadmin' | 'admin';
         error?: string;
       };
 
@@ -40,7 +44,10 @@ export function AdminLogin({ onSuccess, onBackPublic }: AdminLoginProps) {
         return;
       }
 
-      onSuccess(payload.username);
+      onSuccess({
+        username: payload.username,
+        role: payload.role === 'superadmin' ? 'superadmin' : 'admin',
+      });
     } catch {
       setError('Tidak dapat terhubung ke server autentikasi.');
     } finally {
