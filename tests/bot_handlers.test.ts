@@ -310,4 +310,43 @@ describe('Telegram Bot MVP end-to-end command handlers', () => {
     const editCheck = calls.filter((c) => c.method === 'editMessageText')[1];
     expect(String(editCheck?.payload.text)).toContain('555111');
   });
+
+  it('/tckick, /admins, /tcpromote, /rules, and /appeal respond cleanly with guards', async () => {
+    const { bot, calls } = createHarness();
+    const sentMessages = () => calls.filter((c) => c.method === 'sendMessage');
+
+    await bot.handleUpdate(
+      makeMessageUpdate('/tckick', {
+        userId: 1001,
+        chatId: -10012345,
+        chatType: 'supergroup',
+        replyToUserId: 555111,
+      }),
+    );
+    expect(String(sentMessages()[0]?.payload.text)).toContain('555111');
+
+    await bot.handleUpdate(makeMessageUpdate('/admins'));
+    expect(String(sentMessages()[1]?.payload.text)).toContain('1001');
+
+    await bot.handleUpdate(
+      makeMessageUpdate('/tcpromote 555111 moderator', {
+        userId: 2002,
+        chatId: -10012345,
+        chatType: 'supergroup',
+      }),
+    );
+    expect(String(sentMessages()[2]?.payload.text)).toContain(
+      'admin atau owner',
+    );
+
+    await bot.handleUpdate(makeMessageUpdate('/rules'));
+    expect(String(sentMessages()[3]?.payload.text)).toContain(
+      'Aturan Komunitas',
+    );
+
+    await bot.handleUpdate(makeMessageUpdate('/appeal'));
+    expect(String(sentMessages()[4]?.payload.text)).toContain(
+      'Cara Mengajukan Banding',
+    );
+  });
 });

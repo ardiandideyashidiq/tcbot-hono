@@ -2,9 +2,12 @@ import { autoRetry } from '@grammyjs/auto-retry';
 import { Bot } from 'grammy';
 import { hasSupabaseConfig } from '../lib/env';
 import { createSupabaseAdmin } from '../lib/supabase';
+import { appealsComposer } from './composers/appeals';
 import { generalComposer } from './composers/general';
 import { groupsComposer } from './composers/groups';
 import { moderationComposer } from './composers/moderation';
+import { rbacComposer } from './composers/rbac';
+import { rulesComposer } from './composers/rules';
 import type { BotContext } from './context';
 import {
   ensureOwnerAssignment,
@@ -46,6 +49,9 @@ export function createBot(env: CloudflareBindings): Bot<BotContext> {
 
   bot.use(generalComposer);
   bot.use(groupsComposer);
+  bot.use(rbacComposer);
+  bot.use(rulesComposer);
+  bot.use(appealsComposer);
   bot.use(moderationComposer);
 
   bot.catch((err) => {

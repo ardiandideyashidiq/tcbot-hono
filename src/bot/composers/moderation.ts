@@ -647,8 +647,226 @@ moderationComposer.callbackQuery(/^mod:(unban|unmute):(\d+)$/, async (ctx) => {
     targetLabel: String(targetId),
     targetId,
     ...snap,
+    showStaffActions: true,
   });
   await ctx.editMessageText(formatted.text, {
+    entities: formatted.entities,
+    reply_markup: keyboard,
+  });
+});
+
+moderationComposer.command(['tckick', 'tck'], async (ctx) => {
+  const isId = ctx.locale === 'id-ID';
+  const role = await getUserRole(
+    ctx.supabase,
+    ctx.from?.id ?? 0,
+    ctx.appEnv.OWNER_ID,
+  );
+  if (!isStaffRole(role)) {
+    await ctx.reply(t(ctx.locale, 'err.staff_only'));
+    return;
+  }
+
+  const target = await resolveTargetUser(
+    ctx.supabase,
+    ctx.match ?? '',
+    ctx.message?.reply_to_message?.from,
+  );
+  if (!target) {
+    await ctx.reply(t(ctx.locale, 'err.target_missing'));
+    return;
+  }
+  if (target.userId === ctx.from?.id) {
+    await ctx.reply(t(ctx.locale, 'err.self_target'));
+    return;
+  }
+
+  const reason = target.remainingArgs.join(' ').trim() || 'Kicked by staff';
+  let ref = 'local';
+
+  if (ctx.chat.type !== 'private') {
+    await ctx.api.banChatMember(ctx.chat.id, target.userId).catch(() => {});
+    await ctx.api
+      .unbanChatMember(ctx.chat.id, target.userId, { only_if_banned: true })
+      .catch(() => {});
+  }
+
+  if (ctx.supabase) {
+    await ensureTargetPlaceholderUser(ctx, target.userId);
+    const { data: created } = await ctx.supabase
+      .from('moderation_actions')
+      .insert({
+        chat_id: ctx.chat.id,
+        origin_chat_id: ctx.chat.id,
+        action_type: 'kick',
+        target_user_id: target.userId,
+        actor_user_id: ctx.from?.id ?? null,
+        reason,
+        status: 'completed',
+        scope_type: 'chat',
+      })
+      .select('external_ref')
+      .single();
+    if (created?.external_ref) ref = created.external_ref;
+  }
+
+  const { formatted, keyboard } = buildModerationActionCard({
+    locale: ctx.locale,
+    title: isId ? '👢 Pengguna Dikeluarkan' : '👢 User Kicked',
+    targetLabel: target.label,
+    targetId: target.userId,
+    reason,
+    ref,
+    actionType: 'warn',
+  });
+
+  await ctx.reply(formatted.text, {
+    entities: formatted.entities,
+    reply_markup: keyboard,
+  });
+});
+
+moderationComposer.command(['tcunwarn', 'tcunw'], async (ctx) => {
+  const isId = ctx.locale === 'id-ID';
+  const role = await getUserRole(
+    ctx.supabase,
+    ctx.from?.id ?? 0,
+    ctx.appEnv.OWNER_ID,
+  );
+  if (!isStaffRole(role)) {
+    await ctx.reply(t(ctx.locale, 'err.staff_only'));
+    return;
+  }
+
+  const target = await resolveTargetUser(
+    ctx.supabase,
+    ctx.match ?? '',
+    ctx.message?.reply_to_message?.from,
+  );
+  if (!target) {
+    await ctx.reply(t(ctx.locale, 'err.target_missing'));
+    return;
+  }
+
+  if (ctx.supabase) {
+    const { data: latestWarn } = await ctx.supabase
+      .from('moderation_actions')
+      .select('id')
+      .eq('chat_id', ctx.chat.id)
+      .eq('target_user_id', target.userId)
+      .eq('action_type', 'warn')
+      .eq('status', 'completed')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (latestWarn) {
+      await ctx.supabase
+        .from('moderation_actions')
+        .update({
+          status: 'revoked',
+          revoked_at: new Date().toISOString(),
+          revoked_by_user_id: ctx.from?.id ?? null,
+        })
+        .eq('id', latestWarn.id);
+    }
+  }
+
+  const { formatted, keyboard } = buildModerationRevokedCard({
+    locale: ctx.locale,
+    title: isId ? '✅ Peringatan Dicabut' : '✅ Warning Removed',
+    targetLabel: target.label,
+    targetId: target.userId,
+    count: 1,
+  });
+
+  await ctx.reply(formatted.text, {
+    entities: formatted.entities,
+    reply_markup: keyboard,
+  });
+});
+
+moderationComposer.command(['warns', 'warnlist'], async (ctx) => {
+  const role = await getUserRole(
+    ctx.supabase,
+    ctx.from?.id ?? 0,
+    ctx.appEnv.OWNER_ID,
+  );
+  if (!isStaffRole(role)) {
+    await ctx.reply(t(ctx.locale, 'err.staff_only'));
+    return;
+  }
+
+  const target = await resolveTargetUser(
+    ctx.supabase,
+    ctx.match ?? '',
+    ctx.message?.reply_to_message?.from,
+  );
+  if (!target) {
+    await ctx.reply(t(ctx.locale, 'err.target_missing'));
+    return;
+  }
+
+  const snap = await fetchUserModerationSnapshot(ctx, target.userId);
+  const { formatted, keyboard } = buildCheckCard({
+    locale: ctx.locale,
+    targetLabel: target.label,
+    targetId: target.userId,
+    ...snap,
+    showStaffActions: true,
+  });
+
+  await ctx.reply(formatted.text, {
+    entities: formatted.entities,
+    reply_markup: keyboard,
+  });
+});
+
+moderationComposer.command(['resetwarns', 'clearwarns'], async (ctx) => {
+  const isId = ctx.locale === 'id-ID';
+  const role = await getUserRole(
+    ctx.supabase,
+    ctx.from?.id ?? 0,
+    ctx.appEnv.OWNER_ID,
+  );
+  if (!isStaffRole(role)) {
+    await ctx.reply(t(ctx.locale, 'err.staff_only'));
+    return;
+  }
+
+  const target = await resolveTargetUser(
+    ctx.supabase,
+    ctx.match ?? '',
+    ctx.message?.reply_to_message?.from,
+  );
+  if (!target) {
+    await ctx.reply(t(ctx.locale, 'err.target_missing'));
+    return;
+  }
+
+  if (ctx.supabase) {
+    await ctx.supabase
+      .from('moderation_actions')
+      .update({
+        status: 'revoked',
+        revoked_at: new Date().toISOString(),
+        revoked_by_user_id: ctx.from?.id ?? null,
+      })
+      .eq('chat_id', ctx.chat.id)
+      .eq('target_user_id', target.userId)
+      .eq('action_type', 'warn')
+      .eq('status', 'completed');
+  }
+
+  const { formatted, keyboard } = buildModerationRevokedCard({
+    locale: ctx.locale,
+    title: isId ? '🧹 Semua Peringatan Direset' : '🧹 All Warnings Cleared',
+    targetLabel: target.label,
+    targetId: target.userId,
+    count: 1,
+  });
+
+  await ctx.reply(formatted.text, {
     entities: formatted.entities,
     reply_markup: keyboard,
   });

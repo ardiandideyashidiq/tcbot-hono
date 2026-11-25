@@ -35,13 +35,16 @@ Use the buttons below for quick navigation or type /help.`;
     .text(isId ? '📖 Bantuan' : '📖 Help', 'nav:help')
     .text(isId ? '🛡 Status Saya' : '🛡 My Status', 'nav:checkme')
     .row()
+    .text(isId ? '📜 Aturan' : '📜 Rules', 'nav:rules')
     .text(isId ? '🌐 Bahasa' : '🌐 Language', 'nav:lang')
+    .row()
     .text('🏓 Ping', 'nav:ping');
 
   if (isAdmin) {
-    keyboard
-      .row()
-      .text(isId ? '👥 Grup Terhubung' : '👥 Connected Groups', 'nav:groups');
+    keyboard.text(
+      isId ? '👥 Grup Terhubung' : '👥 Connected Groups',
+      'nav:groups',
+    );
   }
 
   keyboard.row().text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
