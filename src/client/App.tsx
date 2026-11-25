@@ -72,6 +72,9 @@ import { CaseDossier } from './components/CaseDossier';
 import { LedgerMiniChart } from './components/CommunityCharts';
 import { PaginationBar, type PaginationMeta } from './components/PaginationBar';
 import { PublicDashboard } from './components/PublicDashboard';
+import { PublicGroupsPage } from './components/PublicGroupsPage';
+import { PublicRulesPage } from './components/PublicRulesPage';
+import { type PublicRoute, PublicShell } from './components/PublicShell';
 import {
   type BanRow,
   BansTable,
@@ -85,6 +88,7 @@ import {
   WarnsTable,
 } from './components/SectionTables';
 import { useDynamicPageSize } from './hooks/use-dynamic-page-size';
+import { usePublicOverview } from './hooks/use-public-overview';
 import { api } from './lib/api';
 import { initTelegramMiniApp, triggerHaptic } from './lib/telegram-webapp';
 import type { CaseStatus, LedgerCase, LedgerSection } from './types';
@@ -1124,6 +1128,16 @@ function isAdminPath(pathname: string): boolean {
   return pathname === '/admin' || pathname.startsWith('/admin/');
 }
 
+function normalizePublicRoute(pathname: string): PublicRoute {
+  if (pathname === '/rules' || pathname.startsWith('/rules/')) {
+    return '/rules';
+  }
+  if (pathname === '/groups' || pathname.startsWith('/groups/')) {
+    return '/groups';
+  }
+  return '/';
+}
+
 export function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [pathname, setPathname] = useState(() =>
@@ -1156,10 +1170,11 @@ export function App() {
     return () => window.removeEventListener('popstate', handlePop);
   }, []);
 
-  const navigate = useCallback((to: '/' | '/admin') => {
+  const navigate = useCallback((to: '/' | '/rules' | '/groups' | '/admin') => {
     if (window.location.pathname !== to) {
       window.history.pushState({}, '', to);
       setPathname(to);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, []);
 
@@ -1251,14 +1266,48 @@ export function App() {
     toast('Sesi admin diakhiri');
   };
 
+  const publicOverview = usePublicOverview();
+
   if (!onAdminRoute) {
+    const publicRoute = normalizePublicRoute(pathname);
     return (
       <>
-        <PublicDashboard
+        <PublicShell
+          currentRoute={publicRoute}
+          communityName={publicOverview.data?.communityName || 'tcbot'}
           darkMode={darkMode}
+          loading={publicOverview.loading}
+          onRefresh={() => void publicOverview.refresh()}
           onToggleTheme={handleToggleTheme}
-          onNavigateAdmin={() => navigate('/admin')}
-        />
+          onNavigate={navigate}
+        >
+          {publicRoute === '/rules' ? (
+            <PublicRulesPage
+              data={publicOverview.data}
+              loading={publicOverview.loading}
+              error={publicOverview.error}
+              onRetry={() => void publicOverview.refresh()}
+              onBackOverview={() => navigate('/')}
+            />
+          ) : publicRoute === '/groups' ? (
+            <PublicGroupsPage
+              data={publicOverview.data}
+              loading={publicOverview.loading}
+              error={publicOverview.error}
+              onRetry={() => void publicOverview.refresh()}
+              onBackOverview={() => navigate('/')}
+            />
+          ) : (
+            <PublicDashboard
+              data={publicOverview.data}
+              loading={publicOverview.loading}
+              error={publicOverview.error}
+              darkMode={darkMode}
+              onRetry={() => void publicOverview.refresh()}
+              onNavigate={navigate}
+            />
+          )}
+        </PublicShell>
         <Toaster />
       </>
     );
