@@ -7,29 +7,35 @@ const CATALOG: Record<Locale, Record<string, string>> = {
     'help.text':
       'Available commands:\n' +
       '/start - Welcome message\n' +
-      '/help - Show this help\n' +
+      '/help - Show interactive help topics\n' +
       '/ping - Check bot latency\n' +
+      '/speedtest - Measure Workers, DB & KV latency\n' +
       '/language - Switch language (en-US / id-ID)\n' +
-      '/checkme - Check your moderation status\n\n' +
+      '/checkme - Check your moderation status\n' +
+      '/rules - View community rules\n' +
+      '/appeal - Submit a ban appeal (DM)\n' +
+      '/privacy - Privacy policy & data rights\n' +
+      '/about - About this community\n\n' +
       'Staff commands:\n' +
-      '/tcconnect - Connect this group to the federation\n' +
-      '/tcdisconnect - Disconnect this group\n' +
-      '/tcgroups - List connected groups\n' +
-      '/tcban <user> [reason] - Ban user across federation\n' +
-      '/tcunban <user> - Unban user\n' +
-      '/tcmute <user> [duration] [reason] - Mute user\n' +
-      '/tcunmute <user> - Unmute user\n' +
-      '/tcwarn <user> [reason] - Warn user\n' +
-      '/check <user> - Inspect user moderation status',
+      '/tcconnect, /tcdisconnect, /rmtc, /tcgroups\n' +
+      '/tcban, /tcunban, /tcmute, /tcunmute, /tckick\n' +
+      '/tcwarn, /tcunwarn, /warns, /resetwarns\n' +
+      '/check, /tcrules, /tcbroadcast, /tcstats\n' +
+      '/admins, /tcpromote, /tcsetrole, /tcdemote, /transferowner\n' +
+      '/cleanup, /leaveall, /tcrepair, /tcforget',
     'lang.prompt': 'Select your preferred language:',
     'lang.updated': 'Language updated to {locale}.',
     'err.staff_only': 'This command is restricted to federation staff.',
     'err.admin_only':
       'This command is restricted to federation admins or owner.',
+    'err.owner_only': 'This command is restricted to the federation owner.',
     'err.group_only': 'This command can only be used inside a group.',
+    'err.dm_only':
+      'Please use this command in a direct message (DM) with the bot.',
     'err.target_missing':
       'Reply to a user or provide a numeric user ID / @username.',
     'err.self_target': 'You cannot target yourself.',
+    'err.db_unconfigured': 'Database is not configured.',
     'group.connected': 'Group connected to the federation ({title}).',
     'group.disconnected': 'Group disconnected from the federation.',
     'group.none': 'No connected groups yet.',
@@ -50,28 +56,34 @@ const CATALOG: Record<Locale, Record<string, string>> = {
     'help.text':
       'Perintah tersedia:\n' +
       '/start - Pesan pembuka\n' +
-      '/help - Tampilkan bantuan ini\n' +
+      '/help - Tampilkan bantuan interaktif\n' +
       '/ping - Cek respons bot\n' +
+      '/speedtest - Ukur latensi Workers, DB & KV\n' +
       '/language - Ubah bahasa (en-US / id-ID)\n' +
-      '/checkme - Cek status moderasi Anda\n\n' +
+      '/checkme - Cek status moderasi Anda\n' +
+      '/rules - Lihat aturan komunitas\n' +
+      '/appeal - Ajukan banding ban (DM)\n' +
+      '/privacy - Kebijakan privasi & hak data\n' +
+      '/about - Tentang komunitas ini\n\n' +
       'Perintah staf:\n' +
-      '/tcconnect - Hubungkan grup ini ke federasi\n' +
-      '/tcdisconnect - Putuskan grup dari federasi\n' +
-      '/tcgroups - Daftar grup terhubung\n' +
-      '/tcban <user> [alasan] - Ban pengguna di seluruh federasi\n' +
-      '/tcunban <user> - Cabut ban pengguna\n' +
-      '/tcmute <user> [durasi] [alasan] - Bisukan pengguna\n' +
-      '/tcunmute <user> - Buka bisu pengguna\n' +
-      '/tcwarn <user> [alasan] - Beri peringatan pengguna\n' +
-      '/check <user> - Periksa status moderasi pengguna',
+      '/tcconnect, /tcdisconnect, /rmtc, /tcgroups\n' +
+      '/tcban, /tcunban, /tcmute, /tcunmute, /tckick\n' +
+      '/tcwarn, /tcunwarn, /warns, /resetwarns\n' +
+      '/check, /tcrules, /tcbroadcast, /tcstats\n' +
+      '/admins, /tcpromote, /tcsetrole, /tcdemote, /transferowner\n' +
+      '/cleanup, /leaveall, /tcrepair, /tcforget',
     'lang.prompt': 'Pilih bahasa yang diinginkan:',
     'lang.updated': 'Bahasa diubah ke {locale}.',
     'err.staff_only': 'Perintah ini hanya untuk staf federasi.',
     'err.admin_only': 'Perintah ini hanya untuk admin atau owner federasi.',
+    'err.owner_only': 'Perintah ini hanya untuk owner federasi.',
     'err.group_only': 'Perintah ini hanya dapat digunakan di dalam grup.',
+    'err.dm_only':
+      'Silakan gunakan perintah ini melalui pesan pribadi (DM) ke bot.',
     'err.target_missing':
       'Balas pesan pengguna atau sertakan user ID / @username.',
     'err.self_target': 'Anda tidak dapat menargetkan diri sendiri.',
+    'err.db_unconfigured': 'Database belum terkonfigurasi.',
     'group.connected': 'Grup terhubung ke federasi ({title}).',
     'group.disconnected': 'Grup diputuskan dari federasi.',
     'group.none': 'Belum ada grup terhubung.',

@@ -167,17 +167,63 @@ export async function ensureOwnerAssignment(
   }
 }
 
+export const ROLE_RANK: Record<RoleKey, number> = {
+  owner: 4,
+  admin: 3,
+  developer: 2,
+  moderator: 1,
+};
+
+export function hasMinRole(role: RoleKey | null, minRole: RoleKey): boolean {
+  if (!role) return false;
+  return ROLE_RANK[role] >= ROLE_RANK[minRole];
+}
+
 export function isStaffRole(role: RoleKey | null): boolean {
-  return (
-    role === 'owner' ||
-    role === 'admin' ||
-    role === 'developer' ||
-    role === 'moderator'
-  );
+  return hasMinRole(role, 'moderator');
 }
 
 export function isAdminOrOwner(role: RoleKey | null): boolean {
-  return role === 'owner' || role === 'admin';
+  return hasMinRole(role, 'admin');
+}
+
+export function generateExternalRef(prefix: string): string {
+  return `${prefix}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+}
+
+export interface AuditEventInput {
+  eventKey: string;
+  entityType: string;
+  entityId: string;
+  actorUserId?: number | null;
+  subjectUserId?: number | null;
+  chatId?: number | null;
+  actionId?: number | null;
+  caseId?: number | null;
+  payload?: Record<string, unknown>;
+}
+
+export async function recordAuditEvent(
+  supabase: TypedSupabaseClient | null,
+  input: AuditEventInput,
+): Promise<void> {
+  if (!supabase) return;
+  try {
+    await supabase.from('audit_events').insert({
+      event_key: input.eventKey,
+      entity_type: input.entityType,
+      entity_id: input.entityId,
+      actor_user_id: input.actorUserId ?? null,
+      subject_user_id: input.subjectUserId ?? null,
+      action_id: input.actionId ?? null,
+      case_id: input.caseId ?? null,
+      payload: (input.chatId
+        ? { chatId: input.chatId, ...(input.payload ?? {}) }
+        : (input.payload ?? {})) as never,
+    });
+  } catch {
+    // Audit logging must not break primary bot operations
+  }
 }
 
 const LOCALE_CACHE_TTL_MS = 60_000;

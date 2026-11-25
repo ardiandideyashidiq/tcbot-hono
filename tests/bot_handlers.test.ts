@@ -237,7 +237,8 @@ describe('Telegram Bot MVP end-to-end command handlers', () => {
         chatType: 'supergroup',
       }),
     );
-    expect(String(calls[2]?.payload.text)).toContain('Test Supergroup');
+    const sent = calls.filter((c) => c.method === 'sendMessage');
+    expect(String(sent[2]?.payload.text)).toContain('Test Supergroup');
   });
 
   it('/tcban, /tcmute, /tcwarn reject non-staff and self-targeting', async () => {

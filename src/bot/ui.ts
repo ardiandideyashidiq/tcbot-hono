@@ -184,6 +184,7 @@ export function buildModerationActionCard(opts: {
   ref?: string;
   extraLine?: string;
   actionType: 'ban' | 'mute' | 'warn';
+  actionId?: number | null;
 }): { formatted: FormattedString; keyboard: InlineKeyboard } {
   const {
     locale,
@@ -195,6 +196,7 @@ export function buildModerationActionCard(opts: {
     ref,
     extraLine,
     actionType,
+    actionId,
   } = opts;
 
   const isId = locale === 'id-ID';
@@ -222,8 +224,19 @@ ${b}Target:${b} ${targetLabel} (${code}${String(targetId)}${code})${countLine}${
   }
   keyboard
     .text(isId ? '🔍 Cek Status' : '🔍 Check', `mod:check:${targetId}`)
-    .row()
-    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
+    .row();
+
+  if (actionId) {
+    keyboard
+      .text(
+        isId ? '📎 Lampirkan Bukti' : '📎 Attach Proof',
+        `mod:proof:${actionId}`,
+      )
+      .text(isId ? '📜 Tandai Pasal' : '📜 Tag Rule', `mod:rule:${actionId}`)
+      .row();
+  }
+
+  keyboard.text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
 
   return { formatted, keyboard };
 }
@@ -256,6 +269,9 @@ export function buildCheckCard(opts: {
   banRef: string | null;
   muteRef: string | null;
   warns: number;
+  warnLimit?: number;
+  roleLabel?: string | null;
+  pendingAppealId?: number | null;
   showStaffActions?: boolean;
 }): { formatted: FormattedString; keyboard: InlineKeyboard } {
   const {
@@ -265,19 +281,29 @@ export function buildCheckCard(opts: {
     banRef,
     muteRef,
     warns,
+    warnLimit,
+    roleLabel,
+    pendingAppealId,
     showStaffActions = false,
   } = opts;
   const isId = locale === 'id-ID';
+  const warnText = warnLimit ? `${warns}/${warnLimit}` : String(warns);
+  const roleLine = roleLabel
+    ? fmt`\n• ${b}Role:${b} ${code}${roleLabel}${code}`
+    : '';
+  const appealLine = pendingAppealId
+    ? fmt`\n• ${b}${isId ? 'Banding aktif' : 'Pending appeal'}:${b} #${String(pendingAppealId)}`
+    : '';
 
   const formatted =
-    !banRef && !muteRef && warns === 0
+    !banRef && !muteRef && warns === 0 && !pendingAppealId
       ? fmt`${b}${isId ? 'Status Bersih' : 'Clean Record'}${b}
-${targetLabel} (${code}${String(targetId)}${code}) ${isId ? 'tidak memiliki ban, bisu, atau peringatan aktif.' : 'has no active bans, mutes, or warnings.'}`
+${targetLabel} (${code}${String(targetId)}${code}) ${isId ? 'tidak memiliki ban, bisu, atau peringatan aktif.' : 'has no active bans, mutes, or warnings.'}${roleLine}`
       : fmt`${b}${isId ? 'Status Moderasi' : 'Moderation Status'}${b}
 ${b}Target:${b} ${targetLabel} (${code}${String(targetId)}${code})
 • ${b}Ban:${b} ${banRef ? fmt`${code}${banRef}${code}` : isId ? 'Tidak ada' : 'None'}
 • ${b}${isId ? 'Bisu' : 'Mute'}:${b} ${muteRef ? fmt`${code}${muteRef}${code}` : isId ? 'Tidak ada' : 'None'}
-• ${b}${isId ? 'Peringatan aktif' : 'Active warns'}:${b} ${String(warns)}`;
+• ${b}${isId ? 'Peringatan aktif' : 'Active warns'}:${b} ${warnText}${roleLine}${appealLine}`;
 
   const keyboard = new InlineKeyboard();
   if (showStaffActions && (banRef || muteRef)) {
@@ -297,6 +323,12 @@ ${b}Target:${b} ${targetLabel} (${code}${String(targetId)}${code})
   }
 
   keyboard
+    .text(isId ? '⚠️ Riwayat Warn' : '⚠️ Warns', `check:warns:${targetId}:1`)
+    .text(
+      isId ? '⚖️ Riwayat Banding' : '⚖️ Appeals',
+      `check:appeals:${targetId}:1`,
+    )
+    .row()
     .text(isId ? '↻ Segarkan' : '↻ Refresh', `mod:check:${targetId}`)
     .text(isId ? '← Kembali' : '← Back', 'nav:start')
     .row()

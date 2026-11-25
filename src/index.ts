@@ -1,7 +1,11 @@
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import type { AppEnv } from './lib/env';
-import { expireDueModerationActions } from './lib/telegram-sync';
+import {
+  expireDueModerationActions,
+  releaseStaleAppeals,
+  retryPendingEnforcementTargets,
+} from './lib/telegram-sync';
 import adminUsersApp from './routes/admin-users';
 import authApp from './routes/auth';
 import healthApp from './routes/health';
@@ -60,6 +64,12 @@ export default {
     env: CloudflareBindings,
     ctx: ExecutionContext,
   ) {
-    ctx.waitUntil(expireDueModerationActions(env));
+    ctx.waitUntil(
+      Promise.allSettled([
+        expireDueModerationActions(env),
+        retryPendingEnforcementTargets(env),
+        releaseStaleAppeals(env),
+      ]),
+    );
   },
 };

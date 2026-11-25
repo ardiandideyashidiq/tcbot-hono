@@ -6,9 +6,11 @@ import { createSupabaseAdmin } from '../lib/supabase';
 import { appealsComposer } from './composers/appeals';
 import { generalComposer } from './composers/general';
 import { groupsComposer } from './composers/groups';
+import { maintenanceComposer } from './composers/maintenance';
 import { moderationComposer } from './composers/moderation';
 import { rbacComposer } from './composers/rbac';
 import { rulesComposer } from './composers/rules';
+import { statsComposer } from './composers/stats';
 import type { BotContext } from './context';
 import {
   ensureOwnerAssignment,
@@ -89,11 +91,15 @@ export function createBot(env: CloudflareBindings): Bot<BotContext> {
     await next();
   });
 
+  // Appeals must run before generalComposer so `/start appeal_<ref>` deep links
+  // are intercepted before the generic `/start` handler.
+  bot.use(appealsComposer);
   bot.use(generalComposer);
   bot.use(groupsComposer);
   bot.use(rbacComposer);
   bot.use(rulesComposer);
-  bot.use(appealsComposer);
+  bot.use(maintenanceComposer);
+  bot.use(statsComposer);
   bot.use(moderationComposer);
 
   bot.catch((err) => {

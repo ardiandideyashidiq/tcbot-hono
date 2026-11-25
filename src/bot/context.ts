@@ -6,4 +6,5 @@ export interface BotContext extends Context {
   supabase: TypedSupabaseClient | null;
   appEnv: CloudflareBindings;
   locale: Locale;
+  commandArgs?: string;
 }
