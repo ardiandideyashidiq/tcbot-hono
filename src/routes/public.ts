@@ -98,6 +98,7 @@ const publicApp = new Hono<AppEnv>().get('/overview', async (c) => {
     };
   });
 
+  c.header('Cache-Control', 'public, max-age=15, stale-while-revalidate=60');
   return c.json({
     configured: true,
     communityName,

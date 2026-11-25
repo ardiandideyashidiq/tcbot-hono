@@ -265,7 +265,7 @@ describe('Ledger API routes with Supabase stub', () => {
     const headers = await adminHeaders();
 
     const listRes = await app.request(
-      '/api/ledger/groups?page=1&limit=10',
+      '/api/ledger/groups?page=1&limit=1',
       { headers },
       configuredEnv,
     );
@@ -273,10 +273,19 @@ describe('Ledger API routes with Supabase stub', () => {
     const listBody = (await listRes.json()) as {
       configured: boolean;
       items: Array<{ chatId: number; isActive: boolean }>;
+      pagination: { nextCursor?: string | null };
     };
     expect(listBody.configured).toBe(true);
     expect(listBody.items).toHaveLength(1);
     expect(listBody.items[0]?.isActive).toBe(true);
+    expect(listBody.pagination.nextCursor).toBe('2026-11-20T00:00:00.000Z');
+
+    const cursorRes = await app.request(
+      `/api/ledger/groups?limit=1&cursor=${encodeURIComponent(listBody.pagination.nextCursor ?? '')}`,
+      { headers },
+      configuredEnv,
+    );
+    expect(cursorRes.status).toBe(200);
 
     const invalidRes = await app.request(
       '/api/ledger/groups/not-a-number/toggle',

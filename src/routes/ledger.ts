@@ -12,6 +12,7 @@ const DEFAULT_PAGE_SIZE = 15;
 const paginationQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(DEFAULT_PAGE_SIZE),
+  cursor: z.string().max(128).optional(),
 });
 
 const appealsQuerySchema = paginationQuerySchema.extend({
@@ -41,7 +42,12 @@ function requireSupabase(env: CloudflareBindings): TypedSupabaseClient | null {
   return createSupabaseAdmin(env);
 }
 
-function buildPagination(page: number, limit: number, total: number) {
+function buildPagination(
+  page: number,
+  limit: number,
+  total: number,
+  nextCursor?: string | null,
+) {
   const safeTotal = Math.max(0, total);
   const totalPages = Math.max(1, Math.ceil(safeTotal / limit));
   return {
@@ -49,6 +55,7 @@ function buildPagination(page: number, limit: number, total: number) {
     limit,
     total: safeTotal,
     totalPages,
+    ...(nextCursor ? { nextCursor } : {}),
   };
 }
 
@@ -117,7 +124,7 @@ const ledgerApp = new Hono<AppEnv>()
     await next();
   })
   .get('/appeals', zValidator('query', appealsQuerySchema), async (c) => {
-    const { page, limit, status } = c.req.valid('query');
+    const { page, limit, status, cursor } = c.req.valid('query');
     const supabase = requireSupabase(c.env);
     if (!supabase) {
       return c.json({
@@ -144,7 +151,13 @@ const ledgerApp = new Hono<AppEnv>()
       query = query.in('status', ['accepted', 'rejected', 'withdrawn']);
     }
 
-    const { data: appeals, count, error } = await query.range(from, to);
+    const {
+      data: appeals,
+      count,
+      error,
+    } = cursor
+      ? await query.lt('submitted_at', cursor).limit(limit)
+      : await query.range(from, to);
 
     if (error) {
       throw new HTTPException(500, { message: error.message });
@@ -201,10 +214,20 @@ const ledgerApp = new Hono<AppEnv>()
       };
     });
 
+    const nextCursor =
+      items.length === limit
+        ? (appeals?.[appeals.length - 1]?.submitted_at ?? null)
+        : null;
+
     return c.json({
       configured: true,
       items,
-      pagination: buildPagination(page, limit, count ?? items.length),
+      pagination: buildPagination(
+        page,
+        limit,
+        count ?? items.length,
+        nextCursor,
+      ),
     });
   })
   .post(
@@ -267,7 +290,7 @@ const ledgerApp = new Hono<AppEnv>()
     },
   )
   .get('/bans', zValidator('query', paginationQuerySchema), async (c) => {
-    const { page, limit } = c.req.valid('query');
+    const { page, limit, cursor } = c.req.valid('query');
     const supabase = requireSupabase(c.env);
     if (!supabase) {
       return c.json({
@@ -278,11 +301,7 @@ const ledgerApp = new Hono<AppEnv>()
     }
 
     const [from, to] = toRange(page, limit);
-    const {
-      data: bans,
-      count,
-      error,
-    } = await supabase
+    const bansQuery = supabase
       .from('moderation_actions')
       .select(
         `id, external_ref, target_user_id, actor_user_id, chat_id, origin_chat_id, reason, status, created_at, expires_at,
@@ -291,8 +310,15 @@ const ledgerApp = new Hono<AppEnv>()
         { count: 'estimated' },
       )
       .eq('action_type', 'ban')
-      .order('created_at', { ascending: false })
-      .range(from, to);
+      .order('created_at', { ascending: false });
+
+    const {
+      data: bans,
+      count,
+      error,
+    } = cursor
+      ? await bansQuery.lt('created_at', cursor).limit(limit)
+      : await bansQuery.range(from, to);
 
     if (error) {
       throw new HTTPException(500, { message: error.message });
@@ -335,10 +361,20 @@ const ledgerApp = new Hono<AppEnv>()
       };
     });
 
+    const nextCursor =
+      items.length === limit
+        ? (bans?.[bans.length - 1]?.created_at ?? null)
+        : null;
+
     return c.json({
       configured: true,
       items,
-      pagination: buildPagination(page, limit, count ?? items.length),
+      pagination: buildPagination(
+        page,
+        limit,
+        count ?? items.length,
+        nextCursor,
+      ),
     });
   })
   .post('/bans/:id/revoke', zValidator('json', revokeBanSchema), async (c) => {
@@ -393,7 +429,7 @@ const ledgerApp = new Hono<AppEnv>()
     return c.json({ ok: true, action: updated });
   })
   .get('/warns', zValidator('query', paginationQuerySchema), async (c) => {
-    const { page, limit } = c.req.valid('query');
+    const { page, limit, cursor } = c.req.valid('query');
     const supabase = requireSupabase(c.env);
     if (!supabase) {
       return c.json({
@@ -404,11 +440,7 @@ const ledgerApp = new Hono<AppEnv>()
     }
 
     const [from, to] = toRange(page, limit);
-    const {
-      data: warns,
-      count,
-      error,
-    } = await supabase
+    const warnsQuery = supabase
       .from('moderation_actions')
       .select(
         `id, external_ref, target_user_id, chat_id, reason, status, created_at, expires_at,
@@ -417,8 +449,15 @@ const ledgerApp = new Hono<AppEnv>()
         { count: 'estimated' },
       )
       .eq('action_type', 'warn')
-      .order('created_at', { ascending: false })
-      .range(from, to);
+      .order('created_at', { ascending: false });
+
+    const {
+      data: warns,
+      count,
+      error,
+    } = cursor
+      ? await warnsQuery.lt('created_at', cursor).limit(limit)
+      : await warnsQuery.range(from, to);
 
     if (error) {
       throw new HTTPException(500, { message: error.message });
@@ -443,14 +482,24 @@ const ledgerApp = new Hono<AppEnv>()
       };
     });
 
+    const nextCursor =
+      items.length === limit
+        ? (warns?.[warns.length - 1]?.created_at ?? null)
+        : null;
+
     return c.json({
       configured: true,
       items,
-      pagination: buildPagination(page, limit, count ?? items.length),
+      pagination: buildPagination(
+        page,
+        limit,
+        count ?? items.length,
+        nextCursor,
+      ),
     });
   })
   .get('/groups', zValidator('query', paginationQuerySchema), async (c) => {
-    const { page, limit } = c.req.valid('query');
+    const { page, limit, cursor } = c.req.valid('query');
     const supabase = requireSupabase(c.env);
     if (!supabase) {
       return c.json({
@@ -461,11 +510,7 @@ const ledgerApp = new Hono<AppEnv>()
     }
 
     const [from, to] = toRange(page, limit);
-    const {
-      data: connected,
-      count,
-      error,
-    } = await supabase
+    const groupsQuery = supabase
       .from('connected_chats')
       .select(
         'chat_id, added_by_user_id, added_at, is_active, telegram_chats!connected_chats_chat_id_fkey(title, chat_type)',
@@ -473,8 +518,15 @@ const ledgerApp = new Hono<AppEnv>()
           count: 'estimated',
         },
       )
-      .order('added_at', { ascending: false })
-      .range(from, to);
+      .order('added_at', { ascending: false });
+
+    const {
+      data: connected,
+      count,
+      error,
+    } = cursor
+      ? await groupsQuery.lt('added_at', cursor).limit(limit)
+      : await groupsQuery.range(from, to);
 
     if (error) {
       throw new HTTPException(500, { message: error.message });
@@ -491,10 +543,20 @@ const ledgerApp = new Hono<AppEnv>()
       };
     });
 
+    const nextCursor =
+      items.length === limit
+        ? (connected?.[connected.length - 1]?.added_at ?? null)
+        : null;
+
     return c.json({
       configured: true,
       items,
-      pagination: buildPagination(page, limit, count ?? items.length),
+      pagination: buildPagination(
+        page,
+        limit,
+        count ?? items.length,
+        nextCursor,
+      ),
     });
   })
   .post('/groups/:chatId/toggle', async (c) => {
