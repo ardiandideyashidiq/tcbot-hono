@@ -71,8 +71,11 @@ function buildDetailedGroupsCard(locale: string, groups: ConnectedGroupInfo[]) {
   const formatted = fmt`${b}${isId ? '👥 Detail Grup Terhubung' : '👥 Connected Groups (Detailed)'}${b} (${code}${String(groups.length)}${code})\n\n${body}`;
   const keyboard = new InlineKeyboard()
     .text(isId ? '📋 Ringkas' : '📋 Simple', 'groups:simple')
+    .primary()
     .text(isId ? '🏠 Menu' : '🏠 Menu', 'nav:start')
-    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
+    .primary()
+    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close')
+    .danger();
   return { formatted, keyboard };
 }
 
@@ -180,7 +183,9 @@ Chat ID: ${code}${String(chatId)}${code}`;
 
   const keyboard = new InlineKeyboard()
     .text(isId ? '👥 Lihat Grup' : '👥 View Groups', 'nav:groups')
-    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
+    .primary()
+    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close')
+    .danger();
 
   await ctx.reply(formatted.text, {
     entities: formatted.entities,
@@ -223,7 +228,9 @@ onCommand(groupsComposer, ['tcdisconnect', 'tcdiscon'], async (ctx) => {
       ctx.locale === 'id-ID' ? '👥 Lihat Grup' : '👥 View Groups',
       'nav:groups',
     )
-    .text(ctx.locale === 'id-ID' ? '✖ Tutup' : '✖ Close', 'nav:close');
+    .primary()
+    .text(ctx.locale === 'id-ID' ? '✖ Tutup' : '✖ Close', 'nav:close')
+    .danger();
 
   await ctx.reply(t(ctx.locale, 'group.disconnected'), {
     reply_markup: keyboard,

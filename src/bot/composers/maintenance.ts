@@ -72,7 +72,9 @@ ${isId ? `Ditemukan ${ghostIds.length} grup yang tidak lagi terjangkau dari ${ch
       isId ? '✅ Nonaktifkan Grup Ghost' : '✅ Deactivate Ghost Groups',
       `maint:cleanup:confirm:${actorId}`,
     )
-    .text(isId ? '❌ Batal' : '❌ Cancel', `maint:cleanup:cancel:${actorId}`);
+    .danger()
+    .text(isId ? '❌ Batal' : '❌ Cancel', `maint:cleanup:cancel:${actorId}`)
+    .primary();
 
   await ctx.reply(prompt.text, {
     entities: prompt.entities,
@@ -180,10 +182,9 @@ ${isId ? 'Bot akan keluar dari semua grup non-primer yang terhubung dan menonakt
         isId ? '✅ Ya, Keluar Semua' : '✅ Yes, Leave All',
         `maint:leaveall:confirm:${actorId}`,
       )
-      .text(
-        isId ? '❌ Batal' : '❌ Cancel',
-        `maint:leaveall:cancel:${actorId}`,
-      );
+      .danger()
+      .text(isId ? '❌ Batal' : '❌ Cancel', `maint:leaveall:cancel:${actorId}`)
+      .primary();
 
     await ctx.reply(prompt.text, {
       entities: prompt.entities,
@@ -329,10 +330,12 @@ ${isId ? 'Nama, username, dan preferensi bahasa akan dianonimkan. Catatan modera
       isId ? '✅ Ya, Anonimkan Data' : '✅ Confirm Erasure',
       `maint:forget:confirm:${targetId}:${actorId}`,
     )
+    .danger()
     .text(
       isId ? '❌ Batal' : '❌ Cancel',
       `maint:forget:cancel:${targetId}:${actorId}`,
-    );
+    )
+    .primary();
 
   await ctx.reply(prompt.text, {
     entities: prompt.entities,

@@ -101,13 +101,18 @@ function buildReviewCardKeyboard(
 ): InlineKeyboard {
   const kb = new InlineKeyboard();
   if (lockedBy) {
-    kb.text(`🔓 Lepas Klaim (${lockedBy})`, `appeal:unlock:${appealId}`);
+    kb.text(
+      `🔓 Lepas Klaim (${lockedBy})`,
+      `appeal:unlock:${appealId}`,
+    ).primary();
   } else {
-    kb.text('🔒 Klaim (12j)', `appeal:claim:${appealId}`);
+    kb.text('🔒 Klaim (12j)', `appeal:claim:${appealId}`).primary();
   }
   kb.row()
     .text('✅ Setujui', `appeal:approve:${appealId}`)
-    .text('❌ Tolak', `appeal:reject:${appealId}`);
+    .success()
+    .text('❌ Tolak', `appeal:reject:${appealId}`)
+    .danger();
   return kb;
 }
 
@@ -426,10 +431,9 @@ ${b}ID Banding:${b} #${String(inserted.id)}
 ${b}Ref:${b} ${code}${params.banRef}${code}${proofSummary}
 ${isId ? 'Banding Anda masuk ke antrean peninjauan moderator.' : 'Your appeal has been queued for moderator review.'}`;
 
-  const keyboard = new InlineKeyboard().text(
-    isId ? '✖ Tutup' : '✖ Close',
-    'nav:close',
-  );
+  const keyboard = new InlineKeyboard()
+    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close')
+    .danger();
 
   await ctx.reply(formatted.text, {
     entities: formatted.entities,
@@ -577,10 +581,9 @@ ${b}Alasan Ban:${b} ${check.banReason ?? '-'}
 
 ${isId ? 'Silakan ketik dan kirim penjelasan banding Anda (10–2000 karakter). Setelah itu Anda dapat melampirkan bukti media opsional.' : 'Please type and send your appeal explanation (10–2000 characters). Afterward you may optionally attach proof media.'}`;
 
-  const kb = new InlineKeyboard().text(
-    isId ? '❌ Batal' : '❌ Cancel',
-    'appeal:cancel',
-  );
+  const kb = new InlineKeyboard()
+    .text(isId ? '❌ Batal' : '❌ Cancel', 'appeal:cancel')
+    .danger();
   const sent = await ctx.reply(prompt.text, {
     entities: prompt.entities,
     reply_markup: kb,
@@ -747,8 +750,10 @@ appealsComposer.on('message:text', async (ctx, next) => {
           ? 'appeal:proof:done'
           : 'appeal:proof:skip',
       )
+      .success()
       .row()
-      .text(isId ? '❌ Batal' : '❌ Cancel', 'appeal:cancel');
+      .text(isId ? '❌ Batal' : '❌ Cancel', 'appeal:cancel')
+      .danger();
     await ctx.reply(
       isId
         ? 'Penjelasan Anda sudah tersimpan. Kirimkan media bukti (foto/video/dokumen/GIF/suara) atau tekan tombol di bawah untuk mengirim banding.'
@@ -800,8 +805,10 @@ ${isId ? `Kirimkan hingga ${MAX_PROOF_ITEMS} media bukti (foto, video, dokumen, 
       isId ? '📤 Kirim Tanpa Bukti' : '📤 Submit Without Proof',
       'appeal:proof:skip',
     )
+    .primary()
     .row()
-    .text(isId ? '❌ Batal' : '❌ Cancel', 'appeal:cancel');
+    .text(isId ? '❌ Batal' : '❌ Cancel', 'appeal:cancel')
+    .danger();
 
   await ctx.reply(proofPrompt.text, {
     entities: proofPrompt.entities,
@@ -852,8 +859,10 @@ appealsComposer.on(
             : `✅ Done & Submit (${session.proofItems.length})`,
           'appeal:proof:done',
         )
+        .success()
         .row()
-        .text(isId ? '❌ Batal' : '❌ Cancel', 'appeal:cancel');
+        .text(isId ? '❌ Batal' : '❌ Cancel', 'appeal:cancel')
+        .danger();
       await ctx.reply(
         isId
           ? `Maksimal ${MAX_PROOF_ITEMS} bukti media sudah tercapai. Tekan Selesai & Kirim.`
@@ -919,8 +928,10 @@ appealsComposer.on(
           : `✅ Done & Submit (${updatedItems.length})`,
         'appeal:proof:done',
       )
+      .success()
       .row()
-      .text(isId ? '❌ Batal' : '❌ Cancel', 'appeal:cancel');
+      .text(isId ? '❌ Batal' : '❌ Cancel', 'appeal:cancel')
+      .danger();
 
     await ctx.reply(
       isId

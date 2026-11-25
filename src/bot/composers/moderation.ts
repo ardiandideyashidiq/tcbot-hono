@@ -753,10 +753,12 @@ ${isId ? 'Timpa ban aktif dengan alasan baru?' : 'Overwrite active ban with the 
           isId ? '✅ Ya, Timpa Ban' : '✅ Overwrite Ban',
           `mod:reban:confirm:${target.userId}:${actorId}`,
         )
+        .danger()
         .text(
           isId ? '❌ Batal' : '❌ Cancel',
           `mod:reban:cancel:${target.userId}:${actorId}`,
-        );
+        )
+        .primary();
       await ctx.reply(prompt.text, {
         entities: prompt.entities,
         reply_markup: kb,
@@ -1587,10 +1589,9 @@ moderationComposer.callbackQuery(
     if (!ctx.supabase) {
       await ctx
         .editMessageText(t(ctx.locale, 'err.db_unconfigured'), {
-          reply_markup: new InlineKeyboard().text(
-            isId ? '← Kembali' : '← Back',
-            `mod:check:${targetId}`,
-          ),
+          reply_markup: new InlineKeyboard()
+            .text(isId ? '← Kembali' : '← Back', `mod:check:${targetId}`)
+            .primary(),
         })
         .catch(() => {});
       return;
@@ -1651,14 +1652,15 @@ moderationComposer.callbackQuery(
           : `⚖️ Appeal History (${page}/${totalPages})`;
 
     const kb = new InlineKeyboard();
-    if (page > 1) kb.text('◀️', `check:${kind}:${targetId}:${page - 1}`);
+    if (page > 1)
+      kb.text('◀️', `check:${kind}:${targetId}:${page - 1}`).primary();
     if (page < totalPages)
-      kb.text('▶️', `check:${kind}:${targetId}:${page + 1}`);
+      kb.text('▶️', `check:${kind}:${targetId}:${page + 1}`).primary();
     if (page > 1 || page < totalPages) kb.row();
-    kb.text(isId ? '← Kembali' : '← Back', `mod:check:${targetId}`).text(
-      isId ? '✖ Tutup' : '✖ Close',
-      'nav:close',
-    );
+    kb.text(isId ? '← Kembali' : '← Back', `mod:check:${targetId}`)
+      .primary()
+      .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close')
+      .danger();
 
     const formatted = fmt`${b}${title}${b}\nTarget: ${code}${String(targetId)}${code}\n\n${body}`;
     await ctx
@@ -1812,10 +1814,9 @@ moderationComposer.callbackQuery(/^mod:proof:(\d+)$/, async (ctx) => {
   await ctx.answerCallbackQuery();
   const prompt = fmt`${b}${isId ? '📎 Lampirkan Bukti' : '📎 Attach Evidence'}${b}
 ${isId ? 'Kirimkan foto, video, atau dokumen sekarang untuk dilampirkan ke kasus ini.' : 'Send photos, videos, or documents now to attach them to this case.'}`;
-  const kb = new InlineKeyboard().text(
-    isId ? '✅ Selesai' : '✅ Done',
-    `mod:proof:done:${action.id}`,
-  );
+  const kb = new InlineKeyboard()
+    .text(isId ? '✅ Selesai' : '✅ Done', `mod:proof:done:${action.id}`)
+    .success();
   await ctx.reply(prompt.text, {
     entities: prompt.entities,
     reply_markup: kb,
@@ -1903,9 +1904,11 @@ moderationComposer.callbackQuery(/^mod:rule:(\d+)$/, async (ctx) => {
     kb.text(
       `📜 ${item.title.slice(0, 28)}`,
       `mod:rule:pick:${actionId}:${item.id}`,
-    ).row();
+    )
+      .primary()
+      .row();
   }
-  kb.text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
+  kb.text(isId ? '✖ Tutup' : '✖ Close', 'nav:close').danger();
 
   await ctx.reply(
     isId ? 'Pilih pasal aturan yang dilanggar:' : 'Select the violated rule:',
@@ -2017,10 +2020,12 @@ moderationComposer.on(
           ? `📎 Bukti #${session.count + 1} tercatat. Kirim lagi atau tekan Selesai.`
           : `📎 Evidence #${session.count + 1} saved. Send more or tap Done.`,
         {
-          reply_markup: new InlineKeyboard().text(
-            isId ? '✅ Selesai' : '✅ Done',
-            `mod:proof:done:${session.actionId}`,
-          ),
+          reply_markup: new InlineKeyboard()
+            .text(
+              isId ? '✅ Selesai' : '✅ Done',
+              `mod:proof:done:${session.actionId}`,
+            )
+            .success(),
         },
       );
     }

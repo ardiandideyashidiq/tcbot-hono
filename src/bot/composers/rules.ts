@@ -311,7 +311,9 @@ ${isId ? 'Belum ada aturan yang diterbitkan.' : 'No published rules yet.'}`;
     }
     keyboard
       .text(isId ? '← Kembali' : '← Back', 'nav:start')
-      .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
+      .primary()
+      .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close')
+      .danger();
 
     if (edit) {
       await ctx
@@ -353,20 +355,24 @@ ${
     const left = slice[idx];
     const right = slice[idx + 1];
     if (left) {
-      keyboard.text(`📂 ${left.title.slice(0, 24)}`, `rules:cat:${left.key}`);
+      keyboard
+        .text(`📂 ${left.title.slice(0, 24)}`, `rules:cat:${left.key}`)
+        .primary();
     }
     if (right) {
-      keyboard.text(`📂 ${right.title.slice(0, 24)}`, `rules:cat:${right.key}`);
+      keyboard
+        .text(`📂 ${right.title.slice(0, 24)}`, `rules:cat:${right.key}`)
+        .primary();
     }
     keyboard.row();
   }
 
   if (totalPages > 1) {
     if (safePage > 1) {
-      keyboard.text('◀️', `rules:index:${safePage - 1}`);
+      keyboard.text('◀️', `rules:index:${safePage - 1}`).primary();
     }
     if (safePage < totalPages) {
-      keyboard.text('▶️', `rules:index:${safePage + 1}`);
+      keyboard.text('▶️', `rules:index:${safePage + 1}`).primary();
     }
     keyboard.row();
   }
@@ -377,18 +383,22 @@ ${
         isId ? '✅ Saya Setuju' : '✅ I Acknowledge',
         `rules:ack:${data.versionId}`,
       )
+      .success()
       .row();
   }
 
   if (channelLink) {
     keyboard
       .url(isId ? '📢 Channel Aturan' : '📢 Rules Channel', channelLink)
+      .primary()
       .row();
   }
 
   keyboard
     .text(isId ? '← Kembali' : '← Back', 'nav:start')
-    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
+    .primary()
+    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close')
+    .danger();
 
   if (edit) {
     await ctx
@@ -448,10 +458,14 @@ ${bodyText}`;
   const keyboard = new InlineKeyboard();
   if (totalPages > 1) {
     if (safePage > 1) {
-      keyboard.text('◀️', `rules:cat:${categoryKey}:p:${safePage - 1}`);
+      keyboard
+        .text('◀️', `rules:cat:${categoryKey}:p:${safePage - 1}`)
+        .primary();
     }
     if (safePage < totalPages) {
-      keyboard.text('▶️', `rules:cat:${categoryKey}:p:${safePage + 1}`);
+      keyboard
+        .text('▶️', `rules:cat:${categoryKey}:p:${safePage + 1}`)
+        .primary();
     }
     keyboard.row();
   }
@@ -462,12 +476,15 @@ ${bodyText}`;
         isId ? '✅ Saya Setuju' : '✅ I Acknowledge',
         `rules:ack:${data.versionId}`,
       )
+      .success()
       .row();
   }
 
   keyboard
     .text(isId ? '← Kategori' : '← Categories', 'nav:rules')
-    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
+    .primary()
+    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close')
+    .danger();
 
   await ctx
     .editMessageText(formatted.text, {
@@ -994,7 +1011,7 @@ async function buildRulesEditorPanel(ctx: BotContext) {
   if (!ctx.supabase) {
     return {
       formatted: fmt`${b}📜 Rules Editor${b}\n${t(ctx.locale, 'err.db_unconfigured')}`,
-      keyboard: new InlineKeyboard().text('✖', 'nav:close'),
+      keyboard: new InlineKeyboard().text('✖', 'nav:close').danger(),
     };
   }
 
@@ -1017,16 +1034,22 @@ async function buildRulesEditorPanel(ctx: BotContext) {
   const formatted = fmt`${b}📜 ${isId ? 'Rules Editor — Aturan Komunitas' : 'Community Rules Editor'}${b}${versionLine}\n\n${list}`;
   const keyboard = new InlineKeyboard()
     .text(isId ? '➕ Tambah Aturan' : '➕ Add Rule', 'rules_editor:add')
+    .success()
     .text(isId ? '✏️ Kelola Pasal' : '✏️ Manage Items', 'rules_editor:list:1')
+    .primary()
     .row()
     .text(
       isId ? '🚀 Terbitkan Versi Baru' : '🚀 Publish New Version',
       'rules_editor:publish',
     )
+    .success()
     .text(isId ? '🔄 Sync Channel' : '🔄 Sync Channel', 'rules_editor:sync')
+    .primary()
     .row()
     .text(isId ? '👁️ Pratinjau' : '👁️ Preview', 'nav:rules')
-    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
+    .primary()
+    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close')
+    .danger();
 
   return { formatted, keyboard };
 }
@@ -1058,20 +1081,23 @@ async function buildEditorItemsList(ctx: BotContext, page = 1) {
         `${item.categoryKey}: ${item.title.slice(0, 24)}`,
         `rules_editor:item:${item.id}`,
       )
+      .primary()
       .row();
   }
   if (totalPages > 1) {
     if (safePage > 1) {
-      keyboard.text('◀️', `rules_editor:list:${safePage - 1}`);
+      keyboard.text('◀️', `rules_editor:list:${safePage - 1}`).primary();
     }
     if (safePage < totalPages) {
-      keyboard.text('▶️', `rules_editor:list:${safePage + 1}`);
+      keyboard.text('▶️', `rules_editor:list:${safePage + 1}`).primary();
     }
     keyboard.row();
   }
   keyboard
     .text(isId ? '← Kembali' : '← Back', 'rules_editor:panel')
-    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
+    .primary()
+    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close')
+    .danger();
 
   return { formatted, keyboard };
 }
@@ -1183,13 +1209,17 @@ ${item.body}`;
       isId ? '✏️ Edit Judul' : '✏️ Edit Title',
       `rules_editor:edit_title:${item.id}`,
     )
+    .primary()
     .text(
       isId ? '📝 Edit Isi' : '📝 Edit Body',
       `rules_editor:edit_body:${item.id}`,
     )
+    .primary()
     .row()
     .text(isId ? '🗑️ Hapus' : '🗑️ Delete', `rules_editor:del:${item.id}`)
-    .text(isId ? '← Daftar' : '← List', 'rules_editor:list:1');
+    .danger()
+    .text(isId ? '← Daftar' : '← List', 'rules_editor:list:1')
+    .primary();
 
   await ctx
     .editMessageText(formatted.text, {
@@ -1227,8 +1257,10 @@ rulesComposer.callbackQuery('rules_editor:add', async (ctx) => {
   for (let idx = 0; idx < existingKeys.length; idx += 2) {
     const left = existingKeys[idx];
     const right = existingKeys[idx + 1];
-    if (left) keyboard.text(`📂 ${left}`, `rules_editor:add_cat:${left}`);
-    if (right) keyboard.text(`📂 ${right}`, `rules_editor:add_cat:${right}`);
+    if (left)
+      keyboard.text(`📂 ${left}`, `rules_editor:add_cat:${left}`).primary();
+    if (right)
+      keyboard.text(`📂 ${right}`, `rules_editor:add_cat:${right}`).primary();
     keyboard.row();
   }
   keyboard
@@ -1236,7 +1268,9 @@ rulesComposer.callbackQuery('rules_editor:add', async (ctx) => {
       isId ? '➕ Kategori Baru' : '➕ New Category',
       'rules_editor:add_cat:__custom__',
     )
-    .text(isId ? '❌ Batal' : '❌ Cancel', 'rules_editor:cancel');
+    .success()
+    .text(isId ? '❌ Batal' : '❌ Cancel', 'rules_editor:cancel')
+    .danger();
 
   await ctx.reply(
     isId
@@ -1278,10 +1312,9 @@ rulesComposer.callbackQuery(
           ? '🏷️ Kirimkan nama/kunci kategori baru (contoh: spam, etika):'
           : '🏷️ Send the new category name/key (e.g., spam, conduct):',
         {
-          reply_markup: new InlineKeyboard().text(
-            isId ? '❌ Batal' : '❌ Cancel',
-            'rules_editor:cancel',
-          ),
+          reply_markup: new InlineKeyboard()
+            .text(isId ? '❌ Batal' : '❌ Cancel', 'rules_editor:cancel')
+            .danger(),
         },
       );
       return;
@@ -1298,10 +1331,9 @@ rulesComposer.callbackQuery(
         ? `📝 Kategori: ${picked}\nKirimkan judul pasal aturan baru:`
         : `📝 Category: ${picked}\nSend the title for the new rule:`,
       {
-        reply_markup: new InlineKeyboard().text(
-          isId ? '❌ Batal' : '❌ Cancel',
-          'rules_editor:cancel',
-        ),
+        reply_markup: new InlineKeyboard()
+          .text(isId ? '❌ Batal' : '❌ Cancel', 'rules_editor:cancel')
+          .danger(),
       },
     );
   },
@@ -1342,10 +1374,9 @@ rulesComposer.callbackQuery(
           ? '📝 Kirimkan isi/penjelasan baru untuk pasal ini:'
           : '📝 Send the new body/description for this rule:',
       {
-        reply_markup: new InlineKeyboard().text(
-          isId ? '❌ Batal' : '❌ Cancel',
-          'rules_editor:cancel',
-        ),
+        reply_markup: new InlineKeyboard()
+          .text(isId ? '❌ Batal' : '❌ Cancel', 'rules_editor:cancel')
+          .danger(),
       },
     );
   },
@@ -1458,10 +1489,12 @@ rulesComposer.on('message:text', async (ctx, next) => {
         ? '✅ Pasal aturan diperbarui. Gunakan panel editor untuk menerbitkan versi baru jika Anda mengedit draf.'
         : '✅ Rule item updated. Use the editor panel to publish a new version if editing a draft.',
       {
-        reply_markup: new InlineKeyboard().text(
-          isId ? '📜 Buka Editor' : '📜 Open Editor',
-          'rules_editor:panel',
-        ),
+        reply_markup: new InlineKeyboard()
+          .text(
+            isId ? '📜 Buka Editor' : '📜 Open Editor',
+            'rules_editor:panel',
+          )
+          .primary(),
       },
     );
     return;
@@ -1501,10 +1534,12 @@ rulesComposer.on('message:text', async (ctx, next) => {
           isId ? '🚀 Terbitkan Versi Baru' : '🚀 Publish New Version',
           'rules_editor:publish',
         )
+        .success()
         .text(
           isId ? '📜 Panel Editor' : '📜 Editor Panel',
           'rules_editor:panel',
-        ),
+        )
+        .primary(),
     },
   );
 });
@@ -1632,11 +1667,14 @@ rulesComposer.callbackQuery('rules_editor:publish', async (ctx) => {
         isId ? '📢 Lihat di Channel' : '📢 View in Channel',
         syncResult.channelLink,
       )
+      .primary()
       .row();
   }
   keyboard
     .text(isId ? '📜 Lihat Aturan' : '📜 View Rules', 'nav:rules')
-    .text(isId ? '← Panel Editor' : '← Editor Panel', 'rules_editor:panel');
+    .primary()
+    .text(isId ? '← Panel Editor' : '← Editor Panel', 'rules_editor:panel')
+    .primary();
 
   await ctx
     .editMessageText(formatted.text, {
@@ -2006,10 +2044,12 @@ ID: ${code}${String(member.id)}${code}`;
         alreadyAcked = Boolean(ackRow);
       }
       if (!alreadyAcked) {
-        keyboard.text(
-          isId ? '✅ Saya Setuju' : '✅ I Acknowledge',
-          `rules_ack:${published.versionId}:${member.id}`,
-        );
+        keyboard
+          .text(
+            isId ? '✅ Saya Setuju' : '✅ I Acknowledge',
+            `rules_ack:${published.versionId}:${member.id}`,
+          )
+          .success();
       }
     }
 

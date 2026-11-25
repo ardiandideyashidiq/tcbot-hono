@@ -1,10 +1,12 @@
-import { b, code, fmt } from '@grammyjs/parse-mode';
+import { b, code, expandableBlockquote, fmt } from '@grammyjs/parse-mode';
 import { Composer, InlineKeyboard } from 'grammy';
 import type { BotContext } from '../context';
 import { getUserRole, isAdminOrOwner, setCachedUserLocale } from '../db';
 import { t } from '../i18n';
 import { onCommand } from '../prefixes';
 import {
+  appendDropdown,
+  buildFormatShowcaseCard,
   buildHelpCard,
   buildLanguageCard,
   buildPingCard,
@@ -31,7 +33,11 @@ onCommand(generalComposer, 'start', async (ctx) => {
   });
 });
 
-function buildHelpTopicCard(locale: string, topic: string) {
+function buildHelpTopicCard(
+  locale: string,
+  topic: string,
+  dropdownOpen = false,
+) {
   const isId = locale === 'id-ID';
   const titles: Record<string, { id: string; en: string }> = {
     general: { id: '📖 Bantuan: Perintah Umum', en: '📖 Help: General' },
@@ -60,16 +66,29 @@ function buildHelpTopicCard(locale: string, topic: string) {
 
   const tEntry = titles[topic] ?? titles.general;
   const bEntry = bodies[topic] ?? bodies.general;
-  const formatted = fmt`${b}${isId ? tEntry.id : tEntry.en}${b}\n\n${isId ? bEntry.id : bEntry.en}`;
-  const keyboard = new InlineKeyboard()
-    .text(isId ? 'Umum' : 'General', 'help:topic:general')
-    .text(isId ? 'Moderasi' : 'Moderation', 'help:topic:mod')
-    .row()
-    .text(isId ? 'Staf & Grup' : 'Staff & Groups', 'help:topic:rbac')
-    .text(isId ? 'Pemeliharaan' : 'Maintenance', 'help:topic:maint')
+  const formatted = fmt`${b}${isId ? tEntry.id : tEntry.en}${b}
+
+${expandableBlockquote}${isId ? bEntry.id : bEntry.en}${expandableBlockquote}`;
+  const keyboard = new InlineKeyboard();
+  appendDropdown(keyboard, {
+    prefix: 'dd:help',
+    placeholder: isId ? 'Pilih Topik Bantuan' : 'Select Help Topic',
+    selectedValue: topic,
+    isOpen: dropdownOpen,
+    closeLabel: isId ? 'Tutup Topik' : 'Close Topics',
+    options: [
+      { value: 'general', label: isId ? 'Umum' : 'General' },
+      { value: 'mod', label: isId ? 'Moderasi' : 'Moderation' },
+      { value: 'rbac', label: isId ? 'Staf & Grup' : 'Staff & Groups' },
+      { value: 'maint', label: isId ? 'Pemeliharaan' : 'Maintenance' },
+    ],
+  });
+  keyboard
     .row()
     .text(isId ? '← Kembali' : '← Back', 'nav:start')
-    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
+    .primary()
+    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close')
+    .danger();
 
   return { formatted, keyboard };
 }
@@ -79,9 +98,10 @@ onCommand(generalComposer, 'help', async (ctx) => {
   keyboard
     .row()
     .text(
-      ctx.locale === 'id-ID' ? '📚 Topik Lengkap' : '📚 All Topics',
-      'help:topic:general',
-    );
+      ctx.locale === 'id-ID' ? '▾ Pilih Topik Lengkap' : '▾ Select Topic',
+      'dd:help:open:general',
+    )
+    .primary();
   await ctx.reply(formatted.text, {
     entities: formatted.entities,
     reply_markup: keyboard,
@@ -95,6 +115,27 @@ generalComposer.callbackQuery(
     const { formatted, keyboard } = buildHelpTopicCard(
       ctx.locale,
       ctx.match[1],
+      false,
+    );
+    await ctx
+      .editMessageText(formatted.text, {
+        entities: formatted.entities,
+        reply_markup: keyboard,
+      })
+      .catch(() => {});
+  },
+);
+
+generalComposer.callbackQuery(
+  /^dd:help:(open|close|pick):(general|mod|rbac|maint|_)$/,
+  async (ctx) => {
+    await ctx.answerCallbackQuery();
+    const action = ctx.match[1];
+    const value = ctx.match[2] === '_' ? 'general' : ctx.match[2];
+    const { formatted, keyboard } = buildHelpTopicCard(
+      ctx.locale,
+      value,
+      action === 'open',
     );
     await ctx
       .editMessageText(formatted.text, {
@@ -227,17 +268,35 @@ ${b}${isId ? s.titleId : s.titleEn}${b}
 
 ${isId ? s.bodyId : s.bodyEn}`;
 
-  const keyboard = new InlineKeyboard()
-    .text(isId ? '1. Data' : '1. Data', 'privacy:sec:collect')
-    .text(isId ? '2. Tujuan' : '2. Purpose', 'privacy:sec:why')
-    .text(isId ? '3. Akses' : '3. Access', 'privacy:sec:access')
+  const keyboard = new InlineKeyboard().text(
+    isId ? '1. Data' : '1. Data',
+    'privacy:sec:collect',
+  );
+  if (section === 'collect') keyboard.success();
+  else keyboard.primary();
+  keyboard.text(isId ? '2. Tujuan' : '2. Purpose', 'privacy:sec:why');
+  if (section === 'why') keyboard.success();
+  else keyboard.primary();
+  keyboard.text(isId ? '3. Akses' : '3. Access', 'privacy:sec:access');
+  if (section === 'access') keyboard.success();
+  else keyboard.primary();
+  keyboard
     .row()
-    .text(isId ? '4. Retensi' : '4. Retention', 'privacy:sec:retention')
-    .text(isId ? '5. Hak' : '5. Rights', 'privacy:sec:rights')
-    .text(isId ? '6. Kontak' : '6. Contact', 'privacy:sec:contact')
+    .text(isId ? '4. Retensi' : '4. Retention', 'privacy:sec:retention');
+  if (section === 'retention') keyboard.success();
+  else keyboard.primary();
+  keyboard.text(isId ? '5. Hak' : '5. Rights', 'privacy:sec:rights');
+  if (section === 'rights') keyboard.success();
+  else keyboard.primary();
+  keyboard.text(isId ? '6. Kontak' : '6. Contact', 'privacy:sec:contact');
+  if (section === 'contact') keyboard.success();
+  else keyboard.primary();
+  keyboard
     .row()
     .text(isId ? '🏠 Menu Utama' : '🏠 Main Menu', 'nav:start')
-    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
+    .primary()
+    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close')
+    .danger();
 
   return { formatted, keyboard };
 }
@@ -268,15 +327,27 @@ function buildAboutContent(
 
 ${isId ? entry.id : entry.en}`;
 
-  const keyboard = new InlineKeyboard()
-    .text(isId ? 'Ringkasan' : 'Overview', 'about:sec:overview')
-    .text(isId ? 'Federasi' : 'Federation', 'about:sec:federation')
-    .text(isId ? 'Banding' : 'Appeals', 'about:sec:appeals')
+  const keyboard = new InlineKeyboard().text(
+    isId ? 'Ringkasan' : 'Overview',
+    'about:sec:overview',
+  );
+  if (section === 'overview') keyboard.success();
+  else keyboard.primary();
+  keyboard.text(isId ? 'Federasi' : 'Federation', 'about:sec:federation');
+  if (section === 'federation') keyboard.success();
+  else keyboard.primary();
+  keyboard.text(isId ? 'Banding' : 'Appeals', 'about:sec:appeals');
+  if (section === 'appeals') keyboard.success();
+  else keyboard.primary();
+  keyboard
     .row()
     .text(isId ? '📜 Aturan' : '📜 Rules', 'nav:rules')
+    .primary()
     .text(isId ? '🔒 Privasi' : '🔒 Privacy', 'nav:privacy')
+    .primary()
     .row()
-    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
+    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close')
+    .danger();
   return { formatted, keyboard };
 }
 
@@ -306,15 +377,68 @@ onCommand(generalComposer, 'additional', async (ctx) => {
 ${isId ? 'Akses cepat ke kebijakan privasi, statistik, dan informasi federasi.' : 'Quick access to privacy policy, statistics, and federation info.'}`;
   const kb = new InlineKeyboard()
     .text(isId ? 'ℹ️ Tentang' : 'ℹ️ About', 'nav:about')
+    .primary()
     .text(isId ? '🔒 Privasi' : '🔒 Privacy', 'nav:privacy')
+    .primary()
     .row()
     .text(isId ? '📜 Aturan' : '📜 Rules', 'nav:rules')
-    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
+    .primary()
+    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close')
+    .danger();
   await ctx.reply(formatted.text, {
     entities: formatted.entities,
     reply_markup: kb,
   });
 });
+
+onCommand(generalComposer, 'formattest', async (ctx) => {
+  const { formatted, keyboard } = buildFormatShowcaseCard({
+    locale: ctx.locale,
+    userId: ctx.from?.id ?? 0,
+    userName: ctx.from?.first_name ?? 'User',
+    dropdownOpen: false,
+    selectedPreset: 'entities',
+  });
+  await ctx.reply(formatted.text, {
+    entities: formatted.entities,
+    reply_markup: keyboard,
+  });
+});
+
+generalComposer.callbackQuery(
+  /^dd:fmt:(open|close|pick):(entities|buttons|dropdown|_)$/,
+  async (ctx) => {
+    await ctx.answerCallbackQuery();
+    const action = ctx.match[1];
+    const preset = ctx.match[2] === '_' ? 'entities' : ctx.match[2];
+    const { formatted, keyboard } = buildFormatShowcaseCard({
+      locale: ctx.locale,
+      userId: ctx.from.id,
+      userName: ctx.from.first_name,
+      dropdownOpen: action === 'open',
+      selectedPreset: preset,
+    });
+    await ctx
+      .editMessageText(formatted.text, {
+        entities: formatted.entities,
+        reply_markup: keyboard,
+      })
+      .catch(() => {});
+  },
+);
+
+generalComposer.callbackQuery(
+  /^fmt:demo:(success|primary|danger)$/,
+  async (ctx) => {
+    const kind = ctx.match[1];
+    await ctx.answerCallbackQuery({
+      text:
+        ctx.locale === 'id-ID'
+          ? `Tombol ${kind} diklik!`
+          : `${kind} button clicked!`,
+    });
+  },
+);
 
 generalComposer.callbackQuery('nav:privacy', async (ctx) => {
   await ctx.answerCallbackQuery();
@@ -398,9 +522,10 @@ generalComposer.callbackQuery('nav:help', async (ctx) => {
   keyboard
     .row()
     .text(
-      ctx.locale === 'id-ID' ? '📚 Topik Lengkap' : '📚 All Topics',
-      'help:topic:general',
-    );
+      ctx.locale === 'id-ID' ? '▾ Pilih Topik Lengkap' : '▾ Select Topic',
+      'dd:help:open:general',
+    )
+    .primary();
   await ctx.editMessageText(formatted.text, {
     entities: formatted.entities,
     reply_markup: keyboard,

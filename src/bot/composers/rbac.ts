@@ -137,10 +137,9 @@ onCommand(rbacComposer, ['admins', 'tcadmins'], async (ctx) => {
     sections.push(`⚖️ Moderator\n${groups.moderator.join('\n')}`);
 
   const formatted = fmt`${b}${isId ? 'Daftar Staf Federasi' : 'Federation Staff'}${b} (${code}${String(assignments.length)}${code})\n\n${sections.join('\n\n')}`;
-  const keyboard = new InlineKeyboard().text(
-    isId ? '✖ Tutup' : '✖ Close',
-    'nav:close',
-  );
+  const keyboard = new InlineKeyboard()
+    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close')
+    .danger();
 
   await ctx.reply(formatted.text, {
     entities: formatted.entities,
@@ -234,10 +233,12 @@ ${b}Role:${b} ${code}${nextRole}${code}`;
         isId ? '✅ Setujui' : '✅ Approve',
         `promo:approve:${inserted?.request_id ?? requestId}`,
       )
+      .success()
       .text(
         isId ? '❌ Tolak' : '❌ Reject',
         `promo:reject:${inserted?.request_id ?? requestId}`,
-      );
+      )
+      .danger();
 
     await ctx.reply(formatted.text, {
       entities: formatted.entities,
@@ -422,10 +423,12 @@ ${b}Role:${b} ${code}${targetRole}${code}`;
         isId ? '✅ Ya, Turunkan' : '✅ Confirm Demote',
         `demote:confirm:${target.userId}:${actorId}`,
       )
+      .danger()
       .text(
         isId ? '❌ Batal' : '❌ Cancel',
         `demote:cancel:${target.userId}:${actorId}`,
-      );
+      )
+      .primary();
     await ctx.reply(prompt.text, {
       entities: prompt.entities,
       reply_markup: keyboard,
@@ -566,10 +569,12 @@ ${isId ? 'Peran Anda akan diturunkan menjadi admin.' : 'Your role will be downgr
       isId ? '👑 Ya, Transfer Owner' : '👑 Confirm Transfer',
       `transfer:confirm:${target.userId}:${actorId}`,
     )
+    .danger()
     .text(
       isId ? '❌ Batal' : '❌ Cancel',
       `transfer:cancel:${target.userId}:${actorId}`,
-    );
+    )
+    .primary();
 
   await ctx.reply(prompt.text, {
     entities: prompt.entities,
@@ -694,10 +699,12 @@ onCommand(
     for (const r of requests.slice(0, 5)) {
       keyboard
         .text(`✅ ${r.request_id}`, `promo:approve:${r.request_id}`)
+        .success()
         .text(`❌ ${r.request_id}`, `promo:reject:${r.request_id}`)
+        .danger()
         .row();
     }
-    keyboard.text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
+    keyboard.text(isId ? '✖ Tutup' : '✖ Close', 'nav:close').danger();
 
     const formatted = fmt`${b}${isId ? '📋 Antrean Permintaan Promosi' : '📋 Pending Promotion Requests'}${b}\n\n${lines}`;
     await ctx.reply(formatted.text, {

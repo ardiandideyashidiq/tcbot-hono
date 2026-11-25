@@ -372,4 +372,145 @@ describe('Telegram Bot MVP end-to-end command handlers', () => {
       'admin atau owner',
     );
   });
+
+  it('styles every inline button and supports rich formatting + clickable dropdowns', async () => {
+    const { bot, calls } = createHarness();
+    const getButtons = (call?: { payload: Record<string, unknown> }) => {
+      const markup = call?.payload.reply_markup as
+        | {
+            inline_keyboard?: Array<
+              Array<{ text: string; callback_data?: string; style?: string }>
+            >;
+          }
+        | undefined;
+      return (markup?.inline_keyboard ?? []).flat();
+    };
+
+    await bot.handleUpdate(makeMessageUpdate('/start'));
+    const startSend = calls.find((c) => c.method === 'sendMessage');
+    const startButtons = getButtons(startSend);
+    expect(startButtons.length).toBeGreaterThan(0);
+    for (const btn of startButtons) {
+      expect(['primary', 'success', 'danger']).toContain(btn.style ?? '');
+    }
+
+    await bot.handleUpdate(makeMessageUpdate('/formattest'));
+    const fmtSend = calls.filter((c) => c.method === 'sendMessage').at(-1);
+    const entities = (fmtSend?.payload.entities ?? []) as Array<{
+      type: string;
+    }>;
+    const entityTypes = new Set(entities.map((e) => e.type));
+    for (const expectedType of [
+      'bold',
+      'italic',
+      'underline',
+      'strikethrough',
+      'code',
+      'spoiler',
+      'text_link',
+      'blockquote',
+      'expandable_blockquote',
+      'pre',
+    ]) {
+      expect(entityTypes.has(expectedType)).toBe(true);
+    }
+
+    const fmtTrigger = getButtons(fmtSend).find(
+      (b) => b.callback_data === 'dd:fmt:open:entities',
+    );
+    expect(fmtTrigger).toBeDefined();
+    expect(fmtTrigger?.style).toBe('primary');
+
+    // Open dropdown
+    await bot.handleUpdate({
+      update_id: 2001,
+      callback_query: {
+        id: 'cb_dd_open',
+        from: { id: 1001, is_bot: false, first_name: 'Owner' },
+        chat_instance: 'ci_dd',
+        data: 'dd:fmt:open:entities',
+        message: {
+          message_id: 90,
+          date: Math.floor(Date.now() / 1000),
+          chat: { id: 1001, type: 'private', first_name: 'Owner' },
+          text: 'Format',
+        },
+      },
+    });
+    const openedEdit = calls
+      .filter((c) => c.method === 'editMessageText')
+      .at(-1);
+    const openedButtons = getButtons(openedEdit);
+    expect(
+      openedButtons.some(
+        (b) =>
+          b.callback_data === 'dd:fmt:close:entities' && b.style === 'danger',
+      ),
+    ).toBe(true);
+    expect(
+      openedButtons.some(
+        (b) =>
+          b.callback_data === 'dd:fmt:pick:entities' &&
+          b.text.startsWith('✓') &&
+          b.style === 'success',
+      ),
+    ).toBe(true);
+    expect(
+      openedButtons.some(
+        (b) =>
+          b.callback_data === 'dd:fmt:pick:buttons' && b.style === 'primary',
+      ),
+    ).toBe(true);
+
+    // Pick another option -> collapses dropdown with new selection
+    await bot.handleUpdate({
+      update_id: 2002,
+      callback_query: {
+        id: 'cb_dd_pick',
+        from: { id: 1001, is_bot: false, first_name: 'Owner' },
+        chat_instance: 'ci_dd',
+        data: 'dd:fmt:pick:buttons',
+        message: {
+          message_id: 90,
+          date: Math.floor(Date.now() / 1000),
+          chat: { id: 1001, type: 'private', first_name: 'Owner' },
+          text: 'Format',
+        },
+      },
+    });
+    const pickedEdit = calls
+      .filter((c) => c.method === 'editMessageText')
+      .at(-1);
+    const pickedButtons = getButtons(pickedEdit);
+    expect(
+      pickedButtons.some(
+        (b) =>
+          b.callback_data === 'dd:fmt:open:buttons' && b.style === 'primary',
+      ),
+    ).toBe(true);
+
+    // Help topic dropdown
+    await bot.handleUpdate({
+      update_id: 2003,
+      callback_query: {
+        id: 'cb_help_dd',
+        from: { id: 1001, is_bot: false, first_name: 'Owner' },
+        chat_instance: 'ci_dd',
+        data: 'dd:help:open:general',
+        message: {
+          message_id: 91,
+          date: Math.floor(Date.now() / 1000),
+          chat: { id: 1001, type: 'private', first_name: 'Owner' },
+          text: 'Help',
+        },
+      },
+    });
+    const helpOpened = calls
+      .filter((c) => c.method === 'editMessageText')
+      .at(-1);
+    const helpButtons = getButtons(helpOpened);
+    expect(
+      helpButtons.some((b) => b.callback_data === 'dd:help:pick:mod'),
+    ).toBe(true);
+  });
 });
