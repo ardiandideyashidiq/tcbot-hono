@@ -95,9 +95,9 @@ export function AdminAccountsPanel({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-5 py-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-border bg-card px-5 py-3.5">
         <div className="flex items-center gap-2.5 text-sm">
-          <ShieldAlert className="size-4 text-primary" />
+          <ShieldAlert className="size-4 shrink-0 text-primary" />
           <span className="text-muted-foreground">
             Hanya satu <strong className="text-foreground">superadmin</strong>{' '}
             aktif yang diizinkan. Superadmin dapat menambah atau menonaktifkan
@@ -106,7 +106,7 @@ export function AdminAccountsPanel({
         </div>
         <Button
           size="sm"
-          className="gap-1.5"
+          className="gap-1.5 rounded-sm"
           onClick={() => setCreateOpen(true)}
         >
           <Plus className="size-4" />
@@ -114,22 +114,22 @@ export function AdminAccountsPanel({
         </Button>
       </div>
 
-      <div className="ledger-table-wrap min-h-0 flex-1 overflow-auto rounded-lg border border-border bg-card">
+      <div className="ledger-table-wrap min-h-0 flex-1 overflow-auto rounded-sm border border-border bg-card">
         {loading && items.length === 0 ? (
           <div className="flex flex-col gap-3 p-5">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full rounded-sm" />
+            <Skeleton className="h-10 w-full rounded-sm" />
           </div>
         ) : (
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Nama pengguna</TableHead>
-                <TableHead>Nama tampilan</TableHead>
-                <TableHead>Peran</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Login terakhir</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="px-6 py-3.5">Nama pengguna</TableHead>
+                <TableHead className="px-4 py-3.5">Nama tampilan</TableHead>
+                <TableHead className="px-4 py-3.5">Peran</TableHead>
+                <TableHead className="px-4 py-3.5">Status</TableHead>
+                <TableHead className="px-4 py-3.5">Login terakhir</TableHead>
+                <TableHead className="px-6 py-3.5 text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -145,34 +145,47 @@ export function AdminAccountsPanel({
               ) : (
                 items.map((row) => (
                   <TableRow key={row.id}>
-                    <TableCell className="font-mono text-xs font-medium">
+                    <TableCell
+                      data-label="Nama pengguna"
+                      className="px-6 py-4 font-mono text-xs font-medium"
+                    >
                       {row.username}
                     </TableCell>
-                    <TableCell>{row.displayName}</TableCell>
-                    <TableCell>
+                    <TableCell data-label="Nama tampilan" className="px-4 py-4">
+                      {row.displayName}
+                    </TableCell>
+                    <TableCell data-label="Peran" className="px-4 py-4">
                       <Badge
                         variant={
                           row.role === 'superadmin' ? 'default' : 'secondary'
                         }
+                        className="rounded-sm"
                       >
                         {row.role}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Status" className="px-4 py-4">
                       <Badge
                         variant={row.isActive ? 'secondary' : 'destructive'}
+                        className="rounded-sm"
                       >
                         {row.isActive ? 'Aktif' : 'Nonaktif'}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
+                    <TableCell
+                      data-label="Login terakhir"
+                      className="px-4 py-4 text-xs text-muted-foreground tabular-nums"
+                    >
                       {row.lastLoginAt
                         ? new Date(row.lastLoginAt).toLocaleString('id-ID')
                         : 'Belum pernah'}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell
+                      data-label="Aksi"
+                      className="px-6 py-4 text-right"
+                    >
                       {row.role === 'superadmin' ? (
-                        <span className="text-xs text-muted-foreground">
+                        <span className="font-mono text-xs text-muted-foreground">
                           Terkunci
                         </span>
                       ) : (
@@ -180,7 +193,7 @@ export function AdminAccountsPanel({
                           <Button
                             variant="outline"
                             size="sm"
-                            className="gap-1"
+                            className="gap-1.5 rounded-sm"
                             onClick={() => {
                               setResetTarget(row);
                               setResetPassword('');
@@ -192,7 +205,7 @@ export function AdminAccountsPanel({
                           <Button
                             variant={row.isActive ? 'destructive' : 'outline'}
                             size="sm"
-                            className="gap-1"
+                            className="gap-1.5 rounded-sm"
                             onClick={() =>
                               void onToggleActive(row.id, !row.isActive)
                             }
@@ -221,7 +234,7 @@ export function AdminAccountsPanel({
       </div>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-md p-6">
+        <DialogContent className="max-w-md rounded-sm p-6">
           <DialogHeader className="gap-1.5">
             <DialogTitle>Tambah akun admin</DialogTitle>
             <DialogDescription>
@@ -233,7 +246,7 @@ export function AdminAccountsPanel({
             <div className="flex flex-col gap-1.5">
               <label
                 htmlFor="new-admin-username"
-                className="text-xs font-medium text-muted-foreground"
+                className="font-mono text-[11px] font-medium tracking-wider text-muted-foreground uppercase"
               >
                 Nama pengguna (a-z, 0-9, ., _, -)
               </label>
@@ -242,12 +255,13 @@ export function AdminAccountsPanel({
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="misal: moderator_budi"
+                className="h-10 rounded-sm"
               />
             </div>
             <div className="flex flex-col gap-1.5">
               <label
                 htmlFor="new-admin-name"
-                className="text-xs font-medium text-muted-foreground"
+                className="font-mono text-[11px] font-medium tracking-wider text-muted-foreground uppercase"
               >
                 Nama tampilan
               </label>
@@ -256,12 +270,13 @@ export function AdminAccountsPanel({
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 placeholder="Budi Santoso"
+                className="h-10 rounded-sm"
               />
             </div>
             <div className="flex flex-col gap-1.5">
               <label
                 htmlFor="new-admin-password"
-                className="text-xs font-medium text-muted-foreground"
+                className="font-mono text-[11px] font-medium tracking-wider text-muted-foreground uppercase"
               >
                 Kata sandi awal (minimal 8 karakter)
               </label>
@@ -271,6 +286,7 @@ export function AdminAccountsPanel({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
+                className="h-10 rounded-sm"
               />
             </div>
           </div>
@@ -279,10 +295,15 @@ export function AdminAccountsPanel({
               variant="outline"
               onClick={() => setCreateOpen(false)}
               disabled={saving}
+              className="rounded-sm"
             >
               Batal
             </Button>
-            <Button onClick={() => void handleCreate()} disabled={saving}>
+            <Button
+              onClick={() => void handleCreate()}
+              disabled={saving}
+              className="rounded-sm"
+            >
               {saving ? 'Menyimpan...' : 'Buat akun'}
             </Button>
           </DialogFooter>
@@ -295,7 +316,7 @@ export function AdminAccountsPanel({
           if (!open) setResetTarget(null);
         }}
       >
-        <DialogContent className="max-w-sm p-6">
+        <DialogContent className="max-w-sm rounded-sm p-6">
           <DialogHeader className="gap-1.5">
             <DialogTitle>Reset sandi {resetTarget?.username}</DialogTitle>
             <DialogDescription>
@@ -305,7 +326,7 @@ export function AdminAccountsPanel({
           <div className="flex flex-col gap-1.5 py-2">
             <label
               htmlFor="reset-admin-password"
-              className="text-xs font-medium text-muted-foreground"
+              className="font-mono text-[11px] font-medium tracking-wider text-muted-foreground uppercase"
             >
               Kata sandi baru (minimal 8 karakter)
             </label>
@@ -315,6 +336,7 @@ export function AdminAccountsPanel({
               value={resetPassword}
               onChange={(e) => setResetPassword(e.target.value)}
               placeholder="••••••••"
+              className="h-10 rounded-sm"
             />
           </div>
           <DialogFooter className="mt-2">
@@ -322,10 +344,15 @@ export function AdminAccountsPanel({
               variant="outline"
               onClick={() => setResetTarget(null)}
               disabled={resetting}
+              className="rounded-sm"
             >
               Batal
             </Button>
-            <Button onClick={() => void handleReset()} disabled={resetting}>
+            <Button
+              onClick={() => void handleReset()}
+              disabled={resetting}
+              className="rounded-sm"
+            >
               {resetting ? 'Menyimpan...' : 'Simpan sandi'}
             </Button>
           </DialogFooter>

@@ -41,7 +41,9 @@ export function RulesBreakdownChart({
     if (!canvas) return;
 
     const textColor = darkMode ? '#CBD5E1' : '#334155';
-    const borderColor = darkMode ? '#0F172A' : '#FFFFFF';
+    const borderColor = darkMode ? '#111921' : '#FFFFFF';
+    const primaryTeal = darkMode ? '#2DD4BF' : '#0F766E';
+    const dangerRose = darkMode ? '#FB7185' : '#BE123C';
 
     const chart = new Chart(canvas, {
       type: 'doughnut',
@@ -52,11 +54,11 @@ export function RulesBreakdownChart({
             data: total > 0 ? [mandatoryCount, advisoryCount] : [1, 0],
             backgroundColor:
               total > 0
-                ? ['#E11D48', '#2563EB']
+                ? [dangerRose, primaryTeal]
                 : [darkMode ? '#1E293B' : '#E2E8F0', 'transparent'],
             borderColor,
             borderWidth: 3,
-            hoverOffset: 6,
+            hoverOffset: 4,
           },
         ],
       },
@@ -70,7 +72,7 @@ export function RulesBreakdownChart({
             labels: {
               color: textColor,
               usePointStyle: true,
-              pointStyle: 'circle',
+              pointStyle: 'rectRounded',
               padding: 16,
               font: {
                 family: '"Plus Jakarta Sans", sans-serif',
@@ -81,11 +83,11 @@ export function RulesBreakdownChart({
           },
           tooltip: {
             enabled: total > 0,
-            backgroundColor: darkMode ? '#0F172A' : '#1E293B',
+            backgroundColor: darkMode ? '#0B1116' : '#0F172A',
             titleColor: '#F8FAFC',
             bodyColor: '#E2E8F0',
             padding: 10,
-            cornerRadius: 8,
+            cornerRadius: 4,
           },
         },
       },
@@ -133,6 +135,8 @@ export function CategoryBarChart({
     const gridColor = darkMode
       ? 'rgba(148, 163, 184, 0.12)'
       : 'rgba(15, 23, 42, 0.06)';
+    const barColor = darkMode ? '#2DD4BF' : '#0F766E';
+    const barHoverColor = darkMode ? '#5EEAD4' : '#0D9488';
 
     const chart = new Chart(canvas, {
       type: 'bar',
@@ -148,9 +152,9 @@ export function CategoryBarChart({
               topCategories.length > 0
                 ? topCategories.map((c) => c.count)
                 : [0],
-            backgroundColor: '#2563EB',
-            hoverBackgroundColor: '#3B82F6',
-            borderRadius: 6,
+            backgroundColor: barColor,
+            hoverBackgroundColor: barHoverColor,
+            borderRadius: 4,
             barThickness: 18,
           },
         ],
@@ -162,11 +166,11 @@ export function CategoryBarChart({
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: darkMode ? '#0F172A' : '#1E293B',
+            backgroundColor: darkMode ? '#0B1116' : '#0F172A',
             titleColor: '#F8FAFC',
             bodyColor: '#E2E8F0',
             padding: 10,
-            cornerRadius: 8,
+            cornerRadius: 4,
           },
         },
         scales: {
@@ -229,7 +233,7 @@ export function LedgerMiniChart({
     if (!canvas) return;
 
     const total = values.reduce((acc, v) => acc + v, 0);
-    const borderColor = darkMode ? '#0F172A' : '#FFFFFF';
+    const borderColor = darkMode ? '#111921' : '#FFFFFF';
 
     const chart = new Chart(canvas, {
       type: 'doughnut',
@@ -253,9 +257,9 @@ export function LedgerMiniChart({
           legend: { display: false },
           tooltip: {
             enabled: total > 0,
-            backgroundColor: darkMode ? '#0F172A' : '#1E293B',
+            backgroundColor: darkMode ? '#0B1116' : '#0F172A',
             padding: 8,
-            cornerRadius: 6,
+            cornerRadius: 4,
           },
         },
       },

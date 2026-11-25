@@ -5,7 +5,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import type { PublicOverview, PublicRule } from '../hooks/use-public-overview';
-import { SectionTab } from './public/SectionTab';
 
 gsap.registerPlugin(useGSAP);
 
@@ -109,8 +108,8 @@ export function PublicRulesPage({
       mm.add('(prefers-reduced-motion: no-preference)', () => {
         gsap.from('.rule-category-block', {
           opacity: 0,
-          y: 10,
-          duration: 0.3,
+          y: 8,
+          duration: 0.26,
           stagger: 0.04,
           ease: 'power2.out',
           clearProps: 'transform,opacity',
@@ -149,15 +148,15 @@ export function PublicRulesPage({
   return (
     <div
       ref={containerRef}
-      className="flex h-full min-h-0 flex-col gap-3 sm:gap-4"
+      className="flex h-full min-h-0 flex-col gap-4 sm:gap-5"
     >
       {error && (
-        <div className="flex shrink-0 items-center justify-between gap-3 border border-destructive/40 bg-[var(--tape-crimson)] px-3 py-1.5 text-xs text-destructive">
+        <div className="flex shrink-0 items-center justify-between gap-3 rounded-sm border border-destructive/40 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
           <span className="truncate">{error}</span>
           <Button
             variant="outline"
             size="sm"
-            className="h-7 shrink-0 px-2.5 text-xs"
+            className="shrink-0 rounded-sm"
             onClick={onRetry}
           >
             Coba lagi
@@ -165,40 +164,40 @@ export function PublicRulesPage({
         </div>
       )}
 
-      {/* Compact single-row header */}
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[var(--rule-line)] pb-2.5">
+      {/* Header */}
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
         <div className="flex min-w-0 items-center gap-3">
-          <button
-            type="button"
+          <Button
+            variant="outline"
             onClick={onBackOverview}
             aria-label="Kembali ke ringkasan"
-            className="inline-flex min-h-10 shrink-0 items-center gap-1.5 border border-[var(--rule-line)] bg-card/70 px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-[var(--ink)] sm:min-h-8"
+            className="min-h-11 shrink-0 gap-2 rounded-sm px-4"
           >
-            <ArrowLeft className="size-3.5" />
+            <ArrowLeft className="size-4" />
             <span className="hidden sm:inline">Ringkasan</span>
-          </button>
-          <h1 className="truncate font-display text-2xl leading-none tracking-tight text-[var(--ink)] sm:text-3xl">
+          </Button>
+          <h1 className="truncate text-xl font-bold tracking-tight text-foreground sm:text-2xl">
             Piagam Aturan {data?.communityName || 'tcbot'}
           </h1>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2.5">
-          <div className="stamp flex items-baseline gap-1.5 px-2.5 py-0.5 font-mono text-xs text-[var(--ink)]">
-            <span className="font-bold tabular-nums">{totalRules}</span>
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="flex items-baseline gap-1.5 rounded-sm border border-border bg-card px-3 py-1.5 font-mono text-xs text-foreground tabular-nums">
+            <span className="font-bold">{totalRules}</span>
             <span className="text-[10px] text-muted-foreground uppercase">
               total
             </span>
           </div>
-          <div className="stamp flex items-baseline gap-1.5 px-2.5 py-0.5 font-mono text-xs text-rose-700 dark:text-rose-300">
-            <span className="font-bold tabular-nums">{mandatoryTotal}</span>
+          <div className="flex items-baseline gap-1.5 rounded-sm border border-destructive/30 bg-destructive/10 px-3 py-1.5 font-mono text-xs text-destructive tabular-nums">
+            <span className="font-bold">{mandatoryTotal}</span>
             <span className="text-[10px] uppercase">wajib</span>
           </div>
         </div>
       </header>
 
-      {/* Index-card filter baseline + paper tabs */}
-      <section className="flex shrink-0 flex-col gap-2.5 border-b border-[var(--rule-line)] pb-2 sm:flex-row sm:items-end sm:justify-between">
-        <label className="relative flex flex-1 items-center gap-2 border-b border-[var(--rule-line)] pb-1 focus-within:border-[var(--ink)]">
+      {/* Search + Filter controls */}
+      <section className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <label className="relative flex min-h-11 flex-1 items-center gap-2.5 rounded-sm border border-border bg-card px-3.5 focus-within:border-primary">
           <Search className="size-4 shrink-0 text-muted-foreground" />
           <input
             type="search"
@@ -206,54 +205,71 @@ export function PublicRulesPage({
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari pasal, kata kunci, kategori, atau #kode..."
             aria-label="Cari aturan"
-            className="min-h-9 w-full bg-transparent text-sm text-[var(--ink)] placeholder:text-muted-foreground focus:outline-none"
+            className="min-h-11 w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
           />
         </label>
 
         <div
           role="tablist"
           aria-label="Filter sifat aturan"
-          className="grid w-full grid-cols-3 gap-1 sm:flex sm:w-auto sm:items-end"
+          className="grid grid-cols-3 gap-1 rounded-sm border border-border bg-card p-1 sm:inline-flex"
         >
-          <SectionTab
-            active={ruleFilter === 'all'}
-            onClick={() => setRuleFilter('all')}
-            badge={totalRules}
-          >
-            Semua
-          </SectionTab>
-          <SectionTab
-            active={ruleFilter === 'mandatory'}
-            onClick={() => setRuleFilter('mandatory')}
-            badge={mandatoryTotal}
-          >
-            Wajib
-          </SectionTab>
-          <SectionTab
-            active={ruleFilter === 'advisory'}
-            onClick={() => setRuleFilter('advisory')}
-            badge={totalRules - mandatoryTotal}
-          >
-            Anjuran
-          </SectionTab>
+          {(
+            [
+              { key: 'all', label: 'Semua', count: totalRules },
+              { key: 'mandatory', label: 'Wajib', count: mandatoryTotal },
+              {
+                key: 'advisory',
+                label: 'Anjuran',
+                count: totalRules - mandatoryTotal,
+              },
+            ] as const
+          ).map((tab) => {
+            const active = ruleFilter === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setRuleFilter(tab.key)}
+                className={`inline-flex min-h-10 items-center justify-center gap-1.5 rounded-sm px-3.5 text-xs font-medium transition-colors ${
+                  active
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                }`}
+              >
+                <span>{tab.label}</span>
+                <span
+                  className={`font-mono text-[11px] tabular-nums ${
+                    active ? 'opacity-90' : 'opacity-70'
+                  }`}
+                >
+                  {tab.count}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </section>
 
       {/* Main 2-column internal scroll layout */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-8">
-        {/* Desktop spine index TOC */}
-        <aside className="hidden min-h-0 flex-col border-r border-[var(--rule-line)] pr-4 lg:flex">
-          <p className="mb-2 shrink-0 font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
-            Daftar Kategori
-          </p>
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-6">
+        {/* Desktop category sidebar */}
+        <aside className="hidden min-h-0 flex-col overflow-hidden rounded-sm border border-border bg-card lg:flex">
+          <div className="shrink-0 border-b border-border bg-muted/40 px-4 py-3">
+            <p className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+              Daftar Kategori
+            </p>
+          </div>
           {groupedRules.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
+            <p className="p-4 text-xs text-muted-foreground">
               Tidak ada kategori cocok.
             </p>
           ) : (
             <nav
               aria-label="Indeks kategori aturan"
-              className="docket-scroll flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pr-1"
+              className="flex min-h-0 flex-1 flex-col divide-y divide-border overflow-y-auto overscroll-contain"
             >
               {groupedRules.map(([category, items], idx) => {
                 const isActive = activeCategory === category;
@@ -266,19 +282,19 @@ export function PublicRulesPage({
                       setActiveCategory(category);
                       scrollToCategory(category);
                     }}
-                    className={`flex min-h-9 items-center justify-between gap-2 px-2 py-1.5 text-left text-xs transition-colors ${
+                    className={`flex min-h-11 items-center justify-between gap-2 border-l-2 px-4 py-2.5 text-left text-xs transition-colors ${
                       isActive
-                        ? 'tape font-semibold text-[var(--ink)]'
-                        : 'text-muted-foreground hover:text-[var(--ink)]'
+                        ? 'border-l-primary bg-muted/50 font-semibold text-foreground'
+                        : 'border-l-transparent text-muted-foreground hover:bg-muted/30 hover:text-foreground'
                     }`}
                   >
                     <span className="flex min-w-0 items-baseline gap-2">
-                      <span className="shrink-0 font-mono text-[10px] tabular-nums opacity-75">
+                      <span className="shrink-0 font-mono text-[10px] tabular-nums opacity-70">
                         {numeral}
                       </span>
                       <span className="truncate">{category}</span>
                     </span>
-                    <span className="shrink-0 font-mono text-[10px] tabular-nums">
+                    <span className="shrink-0 font-mono text-[11px] tabular-nums">
                       {items.length}
                     </span>
                   </button>
@@ -288,16 +304,16 @@ export function PublicRulesPage({
           )}
         </aside>
 
-        {/* Scrollable rules ledger */}
+        {/* Scrollable rules panels */}
         <div
           ref={scrollContainerRef}
-          className="docket-scroll ledger-rule relative min-h-0 flex-1 overflow-y-auto pr-1"
+          className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1"
         >
-          {/* Mobile sticky category selector (zero horizontal scroll) */}
+          {/* Mobile sticky category selector */}
           {groupedRules.length > 0 && (
-            <div className="sticky top-0 z-20 mb-3 border-b border-[var(--rule-line)] bg-[var(--paper)]/95 py-2 lg:hidden">
-              <label className="flex items-center justify-between gap-2 font-mono text-[11px]">
-                <span className="shrink-0 text-muted-foreground uppercase">
+            <div className="sticky top-0 z-20 mb-4 bg-background pb-2 lg:hidden">
+              <label className="flex items-center gap-3 rounded-sm border border-border bg-card px-3 py-1.5">
+                <span className="shrink-0 font-mono text-[11px] text-muted-foreground uppercase">
                   Kategori
                 </span>
                 <select
@@ -308,7 +324,7 @@ export function PublicRulesPage({
                     setActiveCategory(cat);
                     scrollToCategory(cat);
                   }}
-                  className="min-h-10 min-w-0 flex-1 border border-[var(--rule-line)] bg-card px-2.5 py-1 text-xs font-medium text-[var(--ink)] focus:border-[var(--ink)] focus:outline-none"
+                  className="min-h-10 min-w-0 flex-1 bg-transparent text-xs font-medium text-foreground focus:outline-none"
                 >
                   {groupedRules.map(([category, items], idx) => (
                     <option key={category} value={category}>
@@ -322,96 +338,94 @@ export function PublicRulesPage({
           )}
 
           {loading && !data ? (
-            <div className="flex flex-col gap-4 py-2">
+            <div className="flex flex-col gap-4">
               {[0, 1, 2].map((i) => (
                 <div
                   key={i}
-                  className="h-24 animate-pulse border-b border-[var(--rule-line)] bg-muted/30"
+                  className="h-28 animate-pulse rounded-sm border border-border bg-muted/40"
                 />
               ))}
             </div>
           ) : groupedRules.length === 0 ? (
-            <div className="border border-dashed border-[var(--rule-line)] px-6 py-12 text-center text-sm text-muted-foreground">
+            <div className="rounded-sm border border-dashed border-border bg-card px-6 py-12 text-center text-sm text-muted-foreground">
               Belum ada aturan yang cocok dengan filter atau pencarian Anda.
             </div>
           ) : (
-            <div className="flex flex-col gap-6 pb-4">
+            <div className="flex flex-col gap-5 pb-4">
               {groupedRules.map(([category, items], catIdx) => {
                 const catId = `cat-${category.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
-                const isOffsetShelf = catIdx % 2 === 1;
                 return (
                   <section
                     key={category}
                     id={catId}
                     data-category={category}
-                    className={`rule-category-block scroll-mt-12 ${
-                      isOffsetShelf
-                        ? 'lg:ml-10 lg:border-l lg:border-dashed lg:border-[var(--rule-line)] lg:pl-5'
-                        : ''
-                    }`}
+                    className="rule-category-block scroll-mt-14 overflow-hidden rounded-sm border border-border bg-card"
                   >
-                    <div className="mb-2 flex items-baseline justify-between gap-2">
-                      <h2 className="tape font-display text-xl tracking-tight text-[var(--ink)] sm:text-2xl">
-                        {String(catIdx + 1).padStart(2, '0')}. {category}
+                    <div className="flex items-center justify-between gap-2 border-b border-border bg-muted/40 px-5 py-3">
+                      <h2 className="text-sm font-bold tracking-tight text-foreground sm:text-base">
+                        <span className="mr-2 font-mono text-xs text-primary tabular-nums">
+                          {String(catIdx + 1).padStart(2, '0')}
+                        </span>
+                        {category}
                       </h2>
-                      <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
+                      <span className="font-mono text-xs text-muted-foreground tabular-nums">
                         {items.length} butir
                       </span>
                     </div>
 
-                    <ol className="divide-y divide-[var(--rule-line)] border-t border-[var(--rule-line)]">
+                    <ol className="divide-y divide-border">
                       {items.map((rule, ruleIdx) => {
                         const isCopied = copiedKey === rule.ruleKey;
                         return (
                           <li
                             key={rule.id}
                             id={rule.ruleKey}
-                            className="group relative flex gap-3 py-3 transition-colors hover:bg-muted/20 sm:gap-5"
+                            className="group flex items-start gap-4 px-5 py-4 transition-colors hover:bg-muted/20"
                           >
-                            {/* Hanging marginalia numeral */}
                             <span className="w-6 shrink-0 pt-0.5 font-mono text-xs text-muted-foreground tabular-nums">
                               {String(ruleIdx + 1).padStart(2, '0')}
                             </span>
 
                             <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                                <div className="flex flex-wrap items-baseline gap-2">
-                                  <h3 className="text-sm font-semibold text-[var(--ink)] sm:text-base">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <h3 className="text-sm font-semibold text-foreground sm:text-base">
                                     {rule.title}
                                   </h3>
                                   <span
-                                    className={`font-mono text-[10px] uppercase ${
+                                    className={`rounded-sm border px-2 py-0.5 font-mono text-[10px] font-medium uppercase ${
                                       rule.isMandatory
-                                        ? 'text-rose-700 dark:text-rose-300'
-                                        : 'text-muted-foreground'
+                                        ? 'border-destructive/30 bg-destructive/10 text-destructive'
+                                        : 'border-border bg-muted text-muted-foreground'
                                     }`}
                                   >
-                                    [{rule.isMandatory ? 'wajib' : 'anjuran'}]
+                                    {rule.isMandatory ? 'Wajib' : 'Anjuran'}
                                   </span>
                                 </div>
 
-                                <div className="flex items-center gap-1.5">
-                                  <span className="font-mono text-[11px] text-muted-foreground">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono text-xs text-muted-foreground tabular-nums">
                                     #{rule.ruleKey}
                                   </span>
-                                  <button
-                                    type="button"
+                                  <Button
+                                    variant="outline"
+                                    size="icon-sm"
                                     onClick={() =>
                                       void handleCopyRuleLink(rule.ruleKey)
                                     }
                                     aria-label={`Salin tautan ${rule.ruleKey}`}
-                                    className="inline-flex min-h-8 min-w-8 items-center justify-center border border-[var(--rule-line)] bg-card px-1.5 text-muted-foreground opacity-100 transition-opacity hover:text-[var(--ink)] sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+                                    className="min-h-10 min-w-10 rounded-sm"
                                   >
                                     {isCopied ? (
-                                      <Check className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                                      <Check className="size-4 text-primary" />
                                     ) : (
-                                      <Link2 className="size-3.5" />
+                                      <Link2 className="size-4" />
                                     )}
-                                  </button>
+                                  </Button>
                                 </div>
                               </div>
 
-                              <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground sm:text-sm">
                                 {rule.body}
                               </p>
                             </div>

@@ -23,7 +23,7 @@ export function PaginationBar({
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border px-5 py-3.5 text-sm">
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-muted-foreground tabular-nums">
         Halaman <span className="font-medium text-foreground">{page}</span> dari{' '}
         <span className="font-medium text-foreground">{totalPages}</span> ·{' '}
         <span className="font-mono">{total}</span> total data
@@ -35,7 +35,7 @@ export function PaginationBar({
           size="sm"
           disabled={disabled || page <= 1}
           onClick={() => onPageChange(page - 1)}
-          className="gap-1.5 px-3"
+          className="gap-1.5 rounded-sm px-3"
         >
           <ChevronLeft className="size-4" />
           <span>Sebelumnya</span>
@@ -45,7 +45,7 @@ export function PaginationBar({
           size="sm"
           disabled={disabled || page >= totalPages}
           onClick={() => onPageChange(page + 1)}
-          className="gap-1.5 px-3"
+          className="gap-1.5 rounded-sm px-3"
         >
           <span>Berikutnya</span>
           <ChevronRight className="size-4" />

@@ -6,7 +6,6 @@
 
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-display: "Instrument Serif", ui-serif, Georgia, serif;
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   --color-sidebar-ring: var(--sidebar-ring);
@@ -36,72 +35,72 @@
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
+  --radius-sm: var(--radius);
+  --radius-md: var(--radius);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-xl: calc(var(--radius) * 1.5);
 }
 
 :root {
   --target-size: 24px;
-  --radius: 0.5rem;
-  --background: oklch(0.984 0.003 247.858); /* Canvas Chalk #F8FAFC */
-  --foreground: oklch(0.208 0.042 265.755); /* Slate Ink #0F172A */
-  --card: oklch(1 0 0); /* Ledger Surface #FFFFFF */
-  --card-foreground: oklch(0.208 0.042 265.755);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.208 0.042 265.755);
-  --primary: oklch(0.488 0.217 264.052); /* Civic Cobalt #1D4ED8 */
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.465 0.032 257.281); /* Muted Graphite #475569 */
-  --accent: oklch(0.955 0.015 254.604);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.514 0.222 16.935); /* Sanction Crimson #BE123C */
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.916 0.012 254.604);
-  --input: oklch(0.916 0.012 254.604);
-  --ring: oklch(0.488 0.217 264.052);
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.208 0.042 265.755);
-  --sidebar-primary: oklch(0.488 0.217 264.052);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.968 0.007 247.896);
-  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-  --sidebar-border: oklch(0.916 0.012 254.604);
-  --sidebar-ring: oklch(0.488 0.217 264.052);
+  --radius: 0.25rem;
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #0f766e;
+  --primary-foreground: #ffffff;
+  --secondary: #f8fafc;
+  --secondary-foreground: #0f172a;
+  --muted: #f8fafc;
+  --muted-foreground: #475569;
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+  --destructive: #be123c;
+  --destructive-foreground: #ffffff;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #0f766e;
+  --sidebar: #f8fafc;
+  --sidebar-foreground: #0f172a;
+  --sidebar-primary: #0f766e;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1f5f9;
+  --sidebar-accent-foreground: #0f172a;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #0f766e;
 }
 
 .dark {
-  --background: oklch(0.168 0.025 262); /* Deep Navy-Slate #0C111D */
-  --foreground: oklch(0.968 0.007 247.896);
-  --card: oklch(0.205 0.028 262);
-  --card-foreground: oklch(0.968 0.007 247.896);
-  --popover: oklch(0.205 0.028 262);
-  --popover-foreground: oklch(0.968 0.007 247.896);
-  --primary: oklch(0.623 0.214 259.815);
-  --primary-foreground: oklch(0.145 0.02 262);
-  --secondary: oklch(0.258 0.028 262);
-  --secondary-foreground: oklch(0.968 0.007 247.896);
-  --muted: oklch(0.258 0.028 262);
-  --muted-foreground: oklch(0.704 0.022 261.325);
-  --accent: oklch(0.278 0.035 262);
-  --accent-foreground: oklch(0.968 0.007 247.896);
-  --destructive: oklch(0.645 0.224 16.439);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 14%);
-  --ring: oklch(0.623 0.214 259.815);
-  --sidebar: oklch(0.188 0.026 262);
-  --sidebar-foreground: oklch(0.968 0.007 247.896);
-  --sidebar-primary: oklch(0.623 0.214 259.815);
-  --sidebar-primary-foreground: oklch(0.145 0.02 262);
-  --sidebar-accent: oklch(0.258 0.028 262);
-  --sidebar-accent-foreground: oklch(0.968 0.007 247.896);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.623 0.214 259.815);
+  --background: #0b1116;
+  --foreground: #f1f5f9;
+  --card: #111921;
+  --card-foreground: #f1f5f9;
+  --popover: #111921;
+  --popover-foreground: #f1f5f9;
+  --primary: #2dd4bf;
+  --primary-foreground: #0b1116;
+  --secondary: #111921;
+  --secondary-foreground: #f1f5f9;
+  --muted: #111921;
+  --muted-foreground: #94a3b8;
+  --accent: #18232e;
+  --accent-foreground: #f1f5f9;
+  --destructive: #fb7185;
+  --destructive-foreground: #0b1116;
+  --border: #1e293b;
+  --input: #1e293b;
+  --ring: #2dd4bf;
+  --sidebar: #111921;
+  --sidebar-foreground: #f1f5f9;
+  --sidebar-primary: #2dd4bf;
+  --sidebar-primary-foreground: #0b1116;
+  --sidebar-accent: #18232e;
+  --sidebar-accent-foreground: #f1f5f9;
+  --sidebar-border: #1e293b;
+  --sidebar-ring: #2dd4bf;
 }
 
 @media (pointer: coarse) {
@@ -215,165 +214,6 @@
     transition:
       background-color 220ms ease,
       color 220ms ease,
-      border-color 220ms ease;
-  }
-}
-
-/* ==========================================================================
-   Public Docket Scope ("Arsip & Pita") — isolated from Admin Console
-   ========================================================================== */
-
-.public-scope {
-  --paper: #faf7f0;
-  --ink: #111827;
-  --rule-line: rgba(15, 23, 42, 0.12);
-  --tape-blue: #dce8ff;
-  --tape-crimson: #fde2e7;
-  --grain-opacity: 0.035;
-}
-
-.dark .public-scope {
-  --paper: #0e131e;
-  --ink: #f3f4f6;
-  --rule-line: rgba(226, 232, 240, 0.13);
-  --tape-blue: #172a4d;
-  --tape-crimson: #3b1522;
-  --grain-opacity: 0.045;
-}
-
-.public-scope .paper-grain {
-  pointer-events: none;
-  opacity: var(--grain-opacity);
-  background-image:
-    radial-gradient(circle at 18% 24%, var(--ink) 0.55px, transparent 0.7px),
-    radial-gradient(circle at 72% 68%, var(--ink) 0.5px, transparent 0.65px),
-    radial-gradient(circle at 46% 88%, var(--ink) 0.45px, transparent 0.6px);
-  background-size:
-    19px 19px,
-    27px 27px,
-    33px 33px;
-}
-
-.public-scope .ledger-rule {
-  background-image: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent 27px,
-    var(--rule-line) 27px,
-    var(--rule-line) 28px
-  );
-}
-
-.public-scope .spine-text {
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-}
-
-.public-scope .tape {
-  position: relative;
-  display: inline-block;
-  padding-inline: 0.55rem;
-  padding-block: 0.1rem;
-  background-color: var(--tape-blue);
-  color: var(--ink);
-  transform: rotate(-1.5deg);
-  clip-path: polygon(
-    2% 0%,
-    98% 2%,
-    100% 25%,
-    97% 50%,
-    100% 78%,
-    98% 100%,
-    1% 98%,
-    0% 72%,
-    2% 46%,
-    0% 20%
-  );
-}
-
-.public-scope .tape-crimson {
-  background-color: var(--tape-crimson);
-  transform: rotate(1.2deg);
-}
-
-.public-scope .ticket-edge {
-  clip-path: polygon(
-    10px 0%,
-    calc(100% - 10px) 0%,
-    100% 10px,
-    100% calc(100% - 10px),
-    calc(100% - 10px) 100%,
-    10px 100%,
-    0% calc(100% - 10px),
-    0% 10px
-  );
-}
-
-@supports not (clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%)) {
-  .public-scope .tape {
-    border-radius: 0.2rem;
-  }
-  .public-scope .ticket-edge {
-    border-radius: 0.75rem;
-  }
-}
-
-.public-scope .stamp {
-  border: 2px double currentColor;
-  transform: rotate(-6deg);
-}
-
-.public-scope :is(button, a, [tabindex]):focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 3px;
-}
-
-.public-scope[data-density="tight"] {
-  --docket-pad: 0.875rem;
-  --docket-gap: 0.75rem;
-}
-
-.public-scope[data-density="tightest"] {
-  --docket-pad: 0.625rem;
-  --docket-gap: 0.5rem;
-}
-
-.public-scope[data-density="tight"] [data-decorative="1"],
-.public-scope[data-density="tightest"] [data-decorative="1"],
-.public-scope[data-density="tightest"] [data-decorative="2"] {
-  display: none;
-}
-
-.public-scope .docket-scroll {
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  scrollbar-width: thin;
-  scrollbar-color: var(--rule-line) transparent;
-}
-
-.public-scope .docket-scroll::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-.public-scope .docket-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.public-scope .docket-scroll::-webkit-scrollbar-thumb {
-  background-color: var(--rule-line);
-  border: 1px solid transparent;
-}
-
-.public-scope .docket-scroll::-webkit-scrollbar-thumb:hover {
-  background-color: var(--muted-foreground);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .public-scope .docket-fan-card {
-    transition:
-      transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
-      box-shadow 220ms ease,
       border-color 220ms ease;
   }
 }

@@ -1,8 +1,6 @@
 import {
   Globe,
-  KeyRound,
   Loader2,
-  LogOut,
   Moon,
   Plus,
   RefreshCw,
@@ -29,12 +27,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-} from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -61,7 +53,6 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { useIsMobile } from '@/hooks/use-mobile';
 import {
   type AdminAccountRow,
   AdminAccountsPanel,
@@ -69,7 +60,6 @@ import {
 import { AdminLogin } from './components/AdminLogin';
 import { AppSidebar } from './components/AppSidebar';
 import { CaseDossier } from './components/CaseDossier';
-import { LedgerMiniChart } from './components/CommunityCharts';
 import { PaginationBar, type PaginationMeta } from './components/PaginationBar';
 import { PublicDashboard } from './components/PublicDashboard';
 import { PublicGroupsPage } from './components/PublicGroupsPage';
@@ -129,7 +119,6 @@ function AdminConsole({
   onNavigatePublic,
   onUnauthorized,
 }: AdminConsoleProps) {
-  const isMobile = useIsMobile();
   const [activeSection, setActiveSection] = useState<LedgerSection>('appeals');
 
   const [cases, setCases] = useState<LedgerCase[]>([]);
@@ -158,7 +147,7 @@ function AdminConsole({
   const [tierFilter, setTierFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [dossierOpen, setDossierOpen] = useState(false);
   const [ruleDialogOpen, setRuleDialogOpen] = useState(false);
   const [ruleTitle, setRuleTitle] = useState('');
   const [ruleCategory, setRuleCategory] = useState('Umum');
@@ -311,9 +300,7 @@ function AdminConsole({
 
   const handleSelectRow = (item: LedgerCase) => {
     setSelectedId(item.id);
-    if (isMobile) {
-      setDrawerOpen(true);
-    }
+    setDossierOpen(true);
   };
 
   const handleDecide = async (
@@ -354,9 +341,7 @@ function AdminConsole({
         },
       );
       triggerHaptic('success');
-      if (isMobile) {
-        setDrawerOpen(false);
-      }
+      setDossierOpen(false);
     } catch (err) {
       triggerHaptic('error');
       toast('Keputusan gagal disimpan', {
@@ -585,34 +570,27 @@ function AdminConsole({
             activeSection={activeSection}
             onSelectSection={handleSelectSection}
             pendingCount={pendingCount}
-            isSuperadmin={adminRole === 'superadmin'}
+            adminUsername={adminUsername}
+            adminRole={adminRole}
+            onOpenChangePassword={() => setPwDialogOpen(true)}
+            onLogout={onLogout}
           />
 
           <SidebarInset className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <header className="flex min-h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-card px-4 pt-[env(safe-area-inset-top,0px)] sm:px-6">
               <div className="flex items-center gap-3">
-                <SidebarTrigger className="min-h-10 min-w-10 sm:min-h-8 sm:min-w-8" />
+                <SidebarTrigger className="size-10 rounded-sm" />
                 <Separator orientation="vertical" className="h-5" />
-                <div className="flex items-center gap-2">
-                  <h1 className="text-base font-semibold tracking-tight text-foreground">
-                    {SECTION_TITLES[activeSection]}
-                  </h1>
-                  <Badge
-                    variant={
-                      adminRole === 'superadmin' ? 'default' : 'secondary'
-                    }
-                    className="hidden sm:inline-flex"
-                  >
-                    {adminUsername} · {adminRole}
-                  </Badge>
-                </div>
+                <h1 className="text-base font-semibold tracking-tight text-foreground">
+                  {SECTION_TITLES[activeSection]}
+                </h1>
               </div>
 
               <div className="flex items-center gap-2">
                 {activeSection === 'rules' && (
                   <Button
                     size="sm"
-                    className="gap-1.5"
+                    className="gap-1.5 rounded-sm"
                     onClick={() => {
                       triggerHaptic('impact');
                       setRuleDialogOpen(true);
@@ -623,8 +601,9 @@ function AdminConsole({
                   </Button>
                 )}
                 <Button
-                  variant="ghost"
-                  size="icon"
+                  variant="outline"
+                  size="icon-sm"
+                  className="rounded-sm"
                   aria-label="Muat ulang data"
                   onClick={() =>
                     void loadSectionData(
@@ -641,24 +620,18 @@ function AdminConsole({
                   />
                 </Button>
                 <Button
-                  variant="ghost"
-                  size="icon"
+                  variant="outline"
+                  size="icon-sm"
+                  className="rounded-sm"
                   aria-label="Halaman publik"
                   onClick={onNavigatePublic}
                 >
                   <Globe className="size-4" />
                 </Button>
                 <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Ganti kata sandi"
-                  onClick={() => setPwDialogOpen(true)}
-                >
-                  <KeyRound className="size-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
+                  variant="outline"
+                  size="icon-sm"
+                  className="rounded-sm"
                   aria-label="Ubah tema warna"
                   onClick={onToggleTheme}
                 >
@@ -668,229 +641,182 @@ function AdminConsole({
                     <Moon className="size-4" />
                   )}
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Keluar dari konsol admin"
-                  onClick={onLogout}
-                >
-                  <LogOut className="size-4" />
-                </Button>
               </div>
             </header>
 
             <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] sm:gap-5 sm:p-6">
               {activeSection === 'appeals' ? (
-                <>
-                  <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 rounded-xl border border-border/80 bg-card/95 px-4 py-3 shadow-xs sm:px-5">
-                    <div className="flex items-center gap-3.5">
-                      <LedgerMiniChart
-                        labels={['Menunggu', 'Disetujui', 'Ditolak']}
-                        values={[
-                          cases.filter((c) => c.status === 'pending').length,
-                          cases.filter((c) => c.status === 'approved').length,
-                          cases.filter((c) => c.status === 'rejected').length,
-                        ]}
-                        colors={['#F59E0B', '#10B981', '#E11D48']}
-                        darkMode={darkMode}
-                        ariaLabel="Ringkasan status banding halaman ini"
-                      />
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">
-                          {pendingCount > 0
-                            ? `${pendingCount} banding menunggu tinjauan`
-                            : 'Semua banding pada halaman ini telah ditinjau'}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Total {pagination.total.toLocaleString('id-ID')} entri
-                          ·{' '}
-                          {cases.filter((c) => c.status === 'approved').length}{' '}
-                          disetujui ·{' '}
-                          {cases.filter((c) => c.status === 'rejected').length}{' '}
-                          ditolak
-                        </p>
-                      </div>
-                    </div>
-                    {pendingCount > 0 && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="min-h-10 sm:min-h-8"
-                        onClick={() => {
+                <section className="flex min-h-0 flex-1 flex-col rounded-sm border border-border bg-card">
+                  <div className="flex flex-col gap-3.5 border-b border-border p-4 sm:p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <Tabs
+                        value={statusTab}
+                        onValueChange={(val) => {
                           setPage(1);
-                          setStatusTab('pending');
+                          setStatusTab(val as 'all' | 'pending' | 'history');
                         }}
                       >
-                        Tampilkan antrean aktif
-                      </Button>
-                    )}
+                        <TabsList className="h-10 rounded-sm">
+                          <TabsTrigger value="all" className="rounded-sm px-3">
+                            Semua
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="pending"
+                            className="rounded-sm px-3"
+                          >
+                            Aktif
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="history"
+                            className="rounded-sm px-3"
+                          >
+                            Riwayat
+                          </TabsTrigger>
+                        </TabsList>
+                      </Tabs>
+
+                      <Select
+                        value={tierFilter}
+                        onValueChange={(val) => setTierFilter(val ?? 'all')}
+                      >
+                        <SelectTrigger className="h-10 w-full rounded-sm sm:w-44">
+                          <SelectValue placeholder="Semua tingkat" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-sm">
+                          <SelectItem value="all">Semua tingkat</SelectItem>
+                          <SelectItem value="Ringan">Ringan</SelectItem>
+                          <SelectItem value="Sedang">Sedang</SelectItem>
+                          <SelectItem value="Berat">Berat</SelectItem>
+                          <SelectItem value="Sangat berat">
+                            Sangat berat
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Cari nama, username, ID pengguna, atau kode ban..."
+                        className="h-10 rounded-sm pl-9"
+                      />
+                    </div>
                   </div>
 
-                  <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-12">
-                    <section className="flex min-h-0 flex-col rounded-lg border border-border bg-card lg:col-span-7">
-                      <div className="flex flex-col gap-4 border-b border-border p-5">
-                        <div className="flex flex-wrap items-center justify-between gap-4">
-                          <Tabs
-                            value={statusTab}
-                            onValueChange={(val) => {
-                              setPage(1);
-                              setStatusTab(
-                                val as 'all' | 'pending' | 'history',
-                              );
-                            }}
-                          >
-                            <TabsList>
-                              <TabsTrigger value="all">Semua</TabsTrigger>
-                              <TabsTrigger value="pending">Aktif</TabsTrigger>
-                              <TabsTrigger value="history">Riwayat</TabsTrigger>
-                            </TabsList>
-                          </Tabs>
-
-                          <Select
-                            value={tierFilter}
-                            onValueChange={(val) => setTierFilter(val ?? 'all')}
-                          >
-                            <SelectTrigger className="w-full sm:w-44">
-                              <SelectValue placeholder="Semua tingkat" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">Semua tingkat</SelectItem>
-                              <SelectItem value="Ringan">Ringan</SelectItem>
-                              <SelectItem value="Sedang">Sedang</SelectItem>
-                              <SelectItem value="Berat">Berat</SelectItem>
-                              <SelectItem value="Sangat berat">
-                                Sangat berat
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="relative">
-                          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-                          <Input
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Cari nama, username, ID pengguna, atau kode ban..."
-                            className="pl-9"
-                          />
-                        </div>
-                      </div>
-
-                      <section
-                        ref={tableContainerRef}
-                        aria-label="Daftar banding"
-                        className="ledger-table-wrap min-h-0 flex-1 overflow-auto"
-                      >
-                        <Table>
-                          <TableHeader>
-                            <TableRow className="hover:bg-transparent">
-                              <TableHead className="px-5 py-3.5">
-                                Anggota
-                              </TableHead>
-                              <TableHead className="px-4 py-3.5">
-                                Tingkat
-                              </TableHead>
-                              <TableHead className="px-4 py-3.5">
-                                Status
-                              </TableHead>
-                              <TableHead className="px-5 py-3.5 text-right">
-                                Waktu
-                              </TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {filteredCases.length === 0 ? (
-                              <TableRow>
+                  <section
+                    ref={tableContainerRef}
+                    aria-label="Daftar banding"
+                    className="ledger-table-wrap min-h-0 flex-1 overflow-auto"
+                  >
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="hover:bg-transparent">
+                          <TableHead className="px-5 py-3.5">Anggota</TableHead>
+                          <TableHead className="px-4 py-3.5">Tingkat</TableHead>
+                          <TableHead className="px-4 py-3.5">Status</TableHead>
+                          <TableHead className="px-4 py-3.5">Waktu</TableHead>
+                          <TableHead className="px-5 py-3.5 text-right">
+                            Tindakan
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredCases.length === 0 ? (
+                          <TableRow>
+                            <TableCell
+                              colSpan={5}
+                              className="h-36 px-5 text-center text-sm text-muted-foreground"
+                            >
+                              {loadingSection
+                                ? 'Memuat data banding dari Supabase...'
+                                : 'Belum ada banding yang cocok dengan filter saat ini.'}
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          filteredCases.map((item) => {
+                            const isSelected = item.id === selectedId;
+                            return (
+                              <TableRow
+                                key={item.id}
+                                data-state={isSelected ? 'selected' : undefined}
+                              >
                                 <TableCell
-                                  colSpan={4}
-                                  className="h-36 px-5 text-center text-sm text-muted-foreground"
+                                  data-label="Anggota"
+                                  className="px-5 py-4"
                                 >
-                                  {loadingSection
-                                    ? 'Memuat data banding dari Supabase...'
-                                    : 'Belum ada banding yang cocok dengan filter saat ini.'}
+                                  <div className="space-y-1">
+                                    <p className="font-medium text-foreground">
+                                      {item.displayName}
+                                    </p>
+                                    <p className="font-mono text-xs text-muted-foreground tabular-nums">
+                                      {item.externalRef} · {item.username}
+                                    </p>
+                                  </div>
+                                </TableCell>
+                                <TableCell
+                                  data-label="Tingkat"
+                                  className="px-4 py-4"
+                                >
+                                  <Badge
+                                    variant={
+                                      item.ruleTier === 'Sangat berat' ||
+                                      item.ruleTier === 'Berat'
+                                        ? 'destructive'
+                                        : 'secondary'
+                                    }
+                                    className="rounded-sm"
+                                  >
+                                    {item.ruleTier}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell
+                                  data-label="Status"
+                                  className="px-4 py-4"
+                                >
+                                  <Badge
+                                    variant="outline"
+                                    className="rounded-sm"
+                                  >
+                                    {STATUS_LABELS[item.status]}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell
+                                  data-label="Waktu"
+                                  className="px-4 py-4 text-xs text-muted-foreground tabular-nums"
+                                >
+                                  {item.submittedAt}
+                                </TableCell>
+                                <TableCell
+                                  data-label="Tindakan"
+                                  className="px-5 py-4 text-right"
+                                >
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="rounded-sm"
+                                    onClick={() => handleSelectRow(item)}
+                                  >
+                                    Detail
+                                  </Button>
                                 </TableCell>
                               </TableRow>
-                            ) : (
-                              filteredCases.map((item) => {
-                                const isSelected = item.id === selectedId;
-                                return (
-                                  <TableRow
-                                    key={item.id}
-                                    data-state={
-                                      isSelected ? 'selected' : undefined
-                                    }
-                                    onClick={() => handleSelectRow(item)}
-                                    className="cursor-pointer"
-                                  >
-                                    <TableCell
-                                      data-label="Anggota"
-                                      className="px-5 py-4"
-                                    >
-                                      <div className="space-y-1">
-                                        <p className="font-medium text-foreground">
-                                          {item.displayName}
-                                        </p>
-                                        <p className="font-mono text-xs text-muted-foreground">
-                                          {item.externalRef} · {item.username}
-                                        </p>
-                                      </div>
-                                    </TableCell>
-                                    <TableCell
-                                      data-label="Tingkat"
-                                      className="px-4 py-4"
-                                    >
-                                      <Badge
-                                        variant={
-                                          item.ruleTier === 'Sangat berat' ||
-                                          item.ruleTier === 'Berat'
-                                            ? 'destructive'
-                                            : 'secondary'
-                                        }
-                                      >
-                                        {item.ruleTier}
-                                      </Badge>
-                                    </TableCell>
-                                    <TableCell
-                                      data-label="Status"
-                                      className="px-4 py-4"
-                                    >
-                                      <Badge variant="outline">
-                                        {STATUS_LABELS[item.status]}
-                                      </Badge>
-                                    </TableCell>
-                                    <TableCell
-                                      data-label="Waktu"
-                                      className="px-5 py-4 text-right text-xs text-muted-foreground"
-                                    >
-                                      {item.submittedAt}
-                                    </TableCell>
-                                  </TableRow>
-                                );
-                              })
-                            )}
-                          </TableBody>
-                        </Table>
-                      </section>
+                            );
+                          })
+                        )}
+                      </TableBody>
+                    </Table>
+                  </section>
 
-                      <PaginationBar
-                        pagination={pagination}
-                        disabled={loadingSection}
-                        onPageChange={setPage}
-                      />
-                    </section>
-
-                    <aside className="hidden min-h-0 overflow-hidden rounded-lg border border-border bg-card lg:col-span-5 lg:block">
-                      <CaseDossier
-                        selectedCase={selectedCase}
-                        onDecide={(id, decision, note) =>
-                          void handleDecide(id, decision, note)
-                        }
-                      />
-                    </aside>
-                  </div>
-                </>
+                  <PaginationBar
+                    pagination={pagination}
+                    disabled={loadingSection}
+                    onPageChange={setPage}
+                  />
+                </section>
               ) : (
-                <section className="flex min-h-0 flex-1 flex-col rounded-lg border border-border bg-card">
+                <section className="flex min-h-0 flex-1 flex-col rounded-sm border border-border bg-card">
                   <div
                     ref={(el) => {
                       tableContainerRef.current = el;
@@ -944,12 +870,12 @@ function AdminConsole({
           </SidebarInset>
         </div>
 
-        <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
-          <DrawerContent className="max-h-[88dvh] pb-[max(1rem,env(safe-area-inset-bottom,0px))]">
-            <DrawerHeader className="border-b border-border px-6 py-4 text-left">
-              <DrawerTitle>Detail kasus</DrawerTitle>
-            </DrawerHeader>
-            <div className="overflow-y-auto">
+        <Dialog open={dossierOpen} onOpenChange={setDossierOpen}>
+          <DialogContent className="flex max-h-[92dvh] flex-col gap-0 overflow-hidden rounded-sm p-0 sm:max-w-2xl lg:max-w-4xl xl:max-w-5xl">
+            <DialogHeader className="border-b border-border px-6 py-4 text-left">
+              <DialogTitle>Detail kasus</DialogTitle>
+            </DialogHeader>
+            <div className="min-h-0 flex-1 overflow-y-auto">
               <CaseDossier
                 selectedCase={selectedCase}
                 onDecide={(id, decision, note) =>
@@ -957,16 +883,16 @@ function AdminConsole({
                 }
               />
             </div>
-          </DrawerContent>
-        </Drawer>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={loadingSection}>
           <DialogContent
             showCloseButton={false}
-            className="max-w-xs p-6 text-center"
+            className="max-w-xs rounded-sm p-6 text-center"
           >
             <DialogHeader className="items-center gap-3 text-center">
-              <div className="flex size-11 items-center justify-center rounded-full border border-border bg-muted/50">
+              <div className="flex size-11 items-center justify-center rounded-sm border border-border bg-muted/50">
                 <Loader2 className="size-5 animate-spin text-primary" />
               </div>
               <DialogTitle className="text-base">
@@ -980,7 +906,7 @@ function AdminConsole({
         </Dialog>
 
         <Dialog open={ruleDialogOpen} onOpenChange={setRuleDialogOpen}>
-          <DialogContent className="max-w-md p-6">
+          <DialogContent className="max-w-md rounded-sm p-6">
             <DialogHeader className="gap-1.5">
               <DialogTitle>Tambah aturan komunitas</DialogTitle>
               <DialogDescription>
@@ -991,7 +917,7 @@ function AdminConsole({
               <div className="flex flex-col gap-1.5">
                 <label
                   htmlFor="rule-category"
-                  className="text-xs font-medium text-muted-foreground"
+                  className="font-mono text-[11px] font-medium tracking-wider text-muted-foreground uppercase"
                 >
                   Kategori
                 </label>
@@ -1000,12 +926,13 @@ function AdminConsole({
                   value={ruleCategory}
                   onChange={(e) => setRuleCategory(e.target.value)}
                   placeholder="Misal: Umum"
+                  className="h-10 rounded-sm"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label
                   htmlFor="rule-title"
-                  className="text-xs font-medium text-muted-foreground"
+                  className="font-mono text-[11px] font-medium tracking-wider text-muted-foreground uppercase"
                 >
                   Judul aturan
                 </label>
@@ -1014,12 +941,13 @@ function AdminConsole({
                   value={ruleTitle}
                   onChange={(e) => setRuleTitle(e.target.value)}
                   placeholder="Misal: Dilarang spam atau promosi berulang"
+                  className="h-10 rounded-sm"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label
                   htmlFor="rule-body"
-                  className="text-xs font-medium text-muted-foreground"
+                  className="font-mono text-[11px] font-medium tracking-wider text-muted-foreground uppercase"
                 >
                   Penjelasan lengkap
                 </label>
@@ -1029,6 +957,7 @@ function AdminConsole({
                   value={ruleBody}
                   onChange={(e) => setRuleBody(e.target.value)}
                   placeholder="Jelaskan batasan dan konsekuensi pelanggaran..."
+                  className="rounded-sm"
                 />
               </div>
               <label className="flex items-center gap-2 text-sm">
@@ -1036,7 +965,7 @@ function AdminConsole({
                   type="checkbox"
                   checked={ruleMandatory}
                   onChange={(e) => setRuleMandatory(e.target.checked)}
-                  className="size-4 rounded border-border accent-primary"
+                  className="size-4 rounded-sm border-border accent-primary"
                 />
                 Wajib dipatuhi (mandatory)
               </label>
@@ -1046,12 +975,14 @@ function AdminConsole({
                 variant="outline"
                 onClick={() => setRuleDialogOpen(false)}
                 disabled={savingRule}
+                className="rounded-sm"
               >
                 Batal
               </Button>
               <Button
                 onClick={() => void handleCreateRule()}
                 disabled={savingRule}
+                className="rounded-sm"
               >
                 {savingRule ? 'Menyimpan...' : 'Simpan aturan'}
               </Button>
@@ -1060,7 +991,7 @@ function AdminConsole({
         </Dialog>
 
         <Dialog open={pwDialogOpen} onOpenChange={setPwDialogOpen}>
-          <DialogContent className="max-w-sm p-6">
+          <DialogContent className="max-w-sm rounded-sm p-6">
             <DialogHeader className="gap-1.5">
               <DialogTitle>Ganti kata sandi ({adminUsername})</DialogTitle>
               <DialogDescription>
@@ -1072,7 +1003,7 @@ function AdminConsole({
               <div className="flex flex-col gap-1.5">
                 <label
                   htmlFor="own-current-pw"
-                  className="text-xs font-medium text-muted-foreground"
+                  className="font-mono text-[11px] font-medium tracking-wider text-muted-foreground uppercase"
                 >
                   Kata sandi saat ini
                 </label>
@@ -1082,12 +1013,13 @@ function AdminConsole({
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   placeholder="••••••••"
+                  className="h-10 rounded-sm"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label
                   htmlFor="own-new-pw"
-                  className="text-xs font-medium text-muted-foreground"
+                  className="font-mono text-[11px] font-medium tracking-wider text-muted-foreground uppercase"
                 >
                   Kata sandi baru
                 </label>
@@ -1097,6 +1029,7 @@ function AdminConsole({
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="••••••••"
+                  className="h-10 rounded-sm"
                 />
               </div>
             </div>
@@ -1105,12 +1038,14 @@ function AdminConsole({
                 variant="outline"
                 onClick={() => setPwDialogOpen(false)}
                 disabled={savingPassword}
+                className="rounded-sm"
               >
                 Batal
               </Button>
               <Button
                 onClick={() => void handleChangeOwnPassword()}
                 disabled={savingPassword}
+                className="rounded-sm"
               >
                 {savingPassword ? 'Menyimpan...' : 'Simpan sandi'}
               </Button>

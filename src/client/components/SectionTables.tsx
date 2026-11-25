@@ -81,10 +81,10 @@ export interface StaffRow {
 function TableLoadingSkeleton() {
   return (
     <div className="space-y-4 p-6">
-      <Skeleton className="h-10 w-full" />
-      <Skeleton className="h-14 w-full" />
-      <Skeleton className="h-14 w-full" />
-      <Skeleton className="h-14 w-full" />
+      <Skeleton className="h-10 w-full rounded-sm" />
+      <Skeleton className="h-14 w-full rounded-sm" />
+      <Skeleton className="h-14 w-full rounded-sm" />
+      <Skeleton className="h-14 w-full rounded-sm" />
     </div>
   );
 }
@@ -135,7 +135,7 @@ export function BansTable({
                   <p className="font-medium text-foreground">
                     {item.displayName}
                   </p>
-                  <p className="font-mono text-xs text-muted-foreground">
+                  <p className="font-mono text-xs text-muted-foreground tabular-nums">
                     {item.externalRef} · {item.username}
                   </p>
                 </div>
@@ -155,6 +155,7 @@ export function BansTable({
               <TableCell data-label="Status" className="px-4 py-4">
                 <Badge
                   variant={item.status === 'active' ? 'destructive' : 'outline'}
+                  className="rounded-sm"
                 >
                   {item.status === 'active' ? 'Aktif' : item.status}
                 </Badge>
@@ -164,12 +165,16 @@ export function BansTable({
                   <AlertDialog>
                     <AlertDialogTrigger
                       render={
-                        <Button variant="outline" size="sm">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-sm"
+                        >
                           Cabut ban
                         </Button>
                       }
                     />
-                    <AlertDialogContent>
+                    <AlertDialogContent className="rounded-sm">
                       <AlertDialogHeader>
                         <AlertDialogTitle>
                           Cabut ban untuk {item.displayName}?
@@ -180,8 +185,13 @@ export function BansTable({
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>Batal</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => onRevokeBan(item.id)}>
+                        <AlertDialogCancel className="rounded-sm">
+                          Batal
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                          className="rounded-sm"
+                          onClick={() => onRevokeBan(item.id)}
+                        >
                           Cabut ban
                         </AlertDialogAction>
                       </AlertDialogFooter>
@@ -248,11 +258,13 @@ export function WarnsTable({
                 <p className="line-clamp-2">{item.reason}</p>
               </TableCell>
               <TableCell data-label="Status" className="px-4 py-4">
-                <Badge variant="secondary">{item.status}</Badge>
+                <Badge variant="secondary" className="rounded-sm">
+                  {item.status}
+                </Badge>
               </TableCell>
               <TableCell
                 data-label="Tanggal"
-                className="px-6 py-4 text-right text-xs text-muted-foreground"
+                className="px-6 py-4 text-right text-xs text-muted-foreground tabular-nums"
               >
                 {new Date(item.createdAt).toLocaleDateString('id-ID')}
               </TableCell>
@@ -300,7 +312,7 @@ export function GroupsTable({
               </TableCell>
               <TableCell
                 data-label="Chat ID"
-                className="px-4 py-4 font-mono text-xs text-muted-foreground"
+                className="px-4 py-4 font-mono text-xs text-muted-foreground tabular-nums"
               >
                 {item.chatId}
               </TableCell>
@@ -311,7 +323,10 @@ export function GroupsTable({
                 {item.chatType}
               </TableCell>
               <TableCell data-label="Status" className="px-4 py-4">
-                <Badge variant={item.isActive ? 'secondary' : 'outline'}>
+                <Badge
+                  variant={item.isActive ? 'secondary' : 'outline'}
+                  className="rounded-sm"
+                >
                   {item.isActive ? 'Aktif' : 'Nonaktif'}
                 </Badge>
               </TableCell>
@@ -319,6 +334,7 @@ export function GroupsTable({
                 <Button
                   variant="outline"
                   size="sm"
+                  className="rounded-sm"
                   onClick={() => onToggleGroup(item.chatId)}
                 >
                   {item.isActive ? 'Nonaktifkan' : 'Aktifkan'}
@@ -379,12 +395,15 @@ export function RulesTable({
                 <p className="line-clamp-2">{item.body}</p>
               </TableCell>
               <TableCell data-label="Versi" className="px-4 py-4">
-                <Badge variant="outline">
+                <Badge variant="outline" className="rounded-sm tabular-nums">
                   v{item.versionNumber} · {item.versionStatus}
                 </Badge>
               </TableCell>
               <TableCell data-label="Sifat" className="px-6 py-4 text-right">
-                <Badge variant={item.isMandatory ? 'default' : 'secondary'}>
+                <Badge
+                  variant={item.isMandatory ? 'default' : 'secondary'}
+                  className="rounded-sm"
+                >
                   {item.isMandatory ? 'Wajib' : 'Opsional'}
                 </Badge>
               </TableCell>
@@ -433,20 +452,21 @@ export function StaffTable({
               </TableCell>
               <TableCell
                 data-label="User ID"
-                className="px-4 py-4 font-mono text-xs text-muted-foreground"
+                className="px-4 py-4 font-mono text-xs text-muted-foreground tabular-nums"
               >
                 {item.userId}
               </TableCell>
               <TableCell data-label="Peran" className="px-4 py-4">
                 <Badge
                   variant={item.roleKey === 'owner' ? 'default' : 'secondary'}
+                  className="rounded-sm"
                 >
                   {item.roleDisplayName}
                 </Badge>
               </TableCell>
               <TableCell
                 data-label="Ditugaskan"
-                className="px-6 py-4 text-right text-xs text-muted-foreground"
+                className="px-6 py-4 text-right text-xs text-muted-foreground tabular-nums"
               >
                 {new Date(item.assignedAt).toLocaleDateString('id-ID')}
               </TableCell>

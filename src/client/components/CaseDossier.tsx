@@ -67,107 +67,112 @@ export function CaseDossier({ selectedCase, onDecide }: CaseDossierProps) {
 
   return (
     <ScrollArea className="h-full">
-      <div className="space-y-6 p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <Avatar className="size-11 border border-border">
-              <AvatarFallback className="bg-muted text-sm font-medium text-foreground">
-                {initialsFromName(selectedCase.displayName)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="space-y-1">
-              <h2 className="text-base font-semibold leading-none text-foreground">
-                {selectedCase.displayName}
-              </h2>
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <span>{selectedCase.username}</span>
-                <span>•</span>
-                <span className="font-mono">{selectedCase.userId}</span>
+      <div className="grid grid-cols-1 gap-6 p-6 lg:grid-cols-12 lg:gap-8">
+        <div className="space-y-5 lg:col-span-7">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <Avatar className="size-11 rounded-sm border border-border">
+                <AvatarFallback className="rounded-sm bg-muted text-sm font-medium text-foreground">
+                  {initialsFromName(selectedCase.displayName)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="space-y-1">
+                <h2 className="text-base leading-none font-semibold text-foreground">
+                  {selectedCase.displayName}
+                </h2>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span>{selectedCase.username}</span>
+                  <span>•</span>
+                  <span className="font-mono tabular-nums">
+                    {selectedCase.userId}
+                  </span>
+                </div>
               </div>
             </div>
+
+            <Badge
+              variant={
+                selectedCase.ruleTier === 'Sangat berat' ||
+                selectedCase.ruleTier === 'Berat'
+                  ? 'destructive'
+                  : 'secondary'
+              }
+              className="rounded-sm"
+            >
+              {selectedCase.ruleTier}
+            </Badge>
           </div>
 
-          <Badge
-            variant={
-              selectedCase.ruleTier === 'Sangat berat' ||
-              selectedCase.ruleTier === 'Berat'
-                ? 'destructive'
-                : 'secondary'
-            }
-          >
-            {selectedCase.ruleTier}
-          </Badge>
-        </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span className="rounded-sm border border-border bg-muted/50 px-2.5 py-1 font-mono text-foreground tabular-nums">
+              {selectedCase.externalRef}
+            </span>
+            <span className="rounded-sm border border-border px-2.5 py-1">
+              {selectedCase.originGroup}
+            </span>
+            <span className="rounded-sm border border-border px-2.5 py-1 tabular-nums">
+              {selectedCase.submittedAt}
+            </span>
+          </div>
 
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span className="rounded-md border border-border bg-muted/50 px-2.5 py-1 font-mono text-foreground">
-            {selectedCase.externalRef}
-          </span>
-          <span className="rounded-md border border-border px-2.5 py-1">
-            {selectedCase.originGroup}
-          </span>
-          <span className="rounded-md border border-border px-2.5 py-1">
-            {selectedCase.submittedAt}
-          </span>
-        </div>
+          {selectedCase.status === 'locked' && selectedCase.lockedBy && (
+            <div className="flex items-start gap-3 rounded-sm border border-border bg-muted/40 p-4 text-sm">
+              <Lock className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+              <div className="space-y-1">
+                <p className="font-medium text-foreground">
+                  Sedang ditinjau oleh {selectedCase.lockedBy}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Kunci peninjau 12 jam aktif ({selectedCase.lockExpiresIn}).
+                </p>
+              </div>
+            </div>
+          )}
 
-        {selectedCase.status === 'locked' && selectedCase.lockedBy && (
-          <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/40 p-4 text-sm">
-            <Lock className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-            <div className="space-y-1">
-              <p className="font-medium text-foreground">
-                Sedang ditinjau oleh {selectedCase.lockedBy}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Kunci peninjau 12 jam aktif ({selectedCase.lockExpiresIn}).
+          <Separator />
+
+          <div className="space-y-2.5">
+            <div className="flex items-center gap-2 font-mono text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
+              <ShieldAlert className="size-3.5" />
+              <span>Catatan pelanggaran</span>
+            </div>
+            <p className="text-sm font-medium text-foreground">
+              {selectedCase.ruleTitle}
+            </p>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              {selectedCase.reason}
+            </p>
+          </div>
+
+          <div className="space-y-2.5">
+            <p className="font-mono text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
+              Pernyataan banding
+            </p>
+            <div className="rounded-sm border border-border bg-muted/25 p-4">
+              <p className="text-sm leading-relaxed text-foreground">
+                {selectedCase.appealText}
               </p>
             </div>
           </div>
-        )}
 
-        <Separator />
-
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <ShieldAlert className="size-3.5" />
-            <span>Catatan pelanggaran</span>
-          </div>
-          <p className="text-sm font-medium text-foreground">
-            {selectedCase.ruleTitle}
-          </p>
-          <p className="max-w-[70ch] text-sm leading-relaxed text-muted-foreground">
-            {selectedCase.reason}
-          </p>
-        </div>
-
-        <div className="space-y-3">
-          <p className="text-xs font-medium text-muted-foreground">
-            Pernyataan banding
-          </p>
-          <div className="rounded-lg border border-border bg-background p-4">
-            <p className="max-w-[70ch] text-sm leading-relaxed text-foreground">
-              {selectedCase.appealText}
-            </p>
+          <div className="flex items-center justify-between gap-3 rounded-sm border border-border px-4 py-3">
+            <div className="flex items-center gap-2.5 text-sm text-foreground tabular-nums">
+              <Paperclip className="size-4 text-muted-foreground" />
+              <span>{selectedCase.proofCount} lampiran bukti tersimpan</span>
+            </div>
+            <Button variant="outline" size="sm" disabled className="rounded-sm">
+              Buka arsip
+            </Button>
           </div>
         </div>
 
-        <div className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
-          <div className="flex items-center gap-2.5 text-sm text-foreground">
-            <Paperclip className="size-4 text-muted-foreground" />
-            <span>{selectedCase.proofCount} lampiran bukti tersimpan</span>
-          </div>
-          <Button variant="ghost" size="sm" disabled>
-            Buka arsip
-          </Button>
-        </div>
+        <Separator className="lg:hidden" />
 
-        <Separator />
-
-        <div className="space-y-4">
-          <div className="space-y-2">
+        <div className="flex flex-col justify-between gap-5 lg:col-span-5 lg:border-l lg:border-border lg:pl-8">
+          <div className="space-y-2.5">
             <label
               htmlFor="decision-note"
-              className="text-xs font-medium text-muted-foreground"
+              className="font-mono text-[11px] font-medium tracking-wider text-muted-foreground uppercase"
             >
               Catatan keputusan (opsional)
             </label>
@@ -176,7 +181,7 @@ export function CaseDossier({ selectedCase, onDecide }: CaseDossierProps) {
               value={decisionNote}
               onChange={(e) => setDecisionNote(e.target.value)}
               placeholder="Tuliskan alasan singkat untuk log audit..."
-              className="min-h-24 resize-none"
+              className="min-h-28 resize-none rounded-sm lg:min-h-40"
               disabled={isResolved}
             />
           </div>
@@ -185,12 +190,15 @@ export function CaseDossier({ selectedCase, onDecide }: CaseDossierProps) {
             <AlertDialog>
               <AlertDialogTrigger
                 render={
-                  <Button disabled={isResolved} className="flex-1 sm:flex-none">
+                  <Button
+                    disabled={isResolved}
+                    className="flex-1 rounded-sm sm:flex-none"
+                  >
                     Setujui banding
                   </Button>
                 }
               />
-              <AlertDialogContent>
+              <AlertDialogContent className="rounded-sm">
                 <AlertDialogHeader>
                   <AlertDialogTitle>
                     Setujui banding dan cabut ban?
@@ -201,8 +209,13 @@ export function CaseDossier({ selectedCase, onDecide }: CaseDossierProps) {
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Batal</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => handleConfirm('approved')}>
+                  <AlertDialogCancel className="rounded-sm">
+                    Batal
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    className="rounded-sm"
+                    onClick={() => handleConfirm('approved')}
+                  >
                     Setujui banding
                   </AlertDialogAction>
                 </AlertDialogFooter>
@@ -215,13 +228,13 @@ export function CaseDossier({ selectedCase, onDecide }: CaseDossierProps) {
                   <Button
                     variant="destructive"
                     disabled={isResolved}
-                    className="flex-1 sm:flex-none"
+                    className="flex-1 rounded-sm sm:flex-none"
                   >
                     Tolak banding
                   </Button>
                 }
               />
-              <AlertDialogContent>
+              <AlertDialogContent className="rounded-sm">
                 <AlertDialogHeader>
                   <AlertDialogTitle>Tolak banding ini?</AlertDialogTitle>
                   <AlertDialogDescription>
@@ -230,8 +243,13 @@ export function CaseDossier({ selectedCase, onDecide }: CaseDossierProps) {
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Batal</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => handleConfirm('rejected')}>
+                  <AlertDialogCancel className="rounded-sm">
+                    Batal
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    className="rounded-sm"
+                    onClick={() => handleConfirm('rejected')}
+                  >
                     Tolak banding
                   </AlertDialogAction>
                 </AlertDialogFooter>
