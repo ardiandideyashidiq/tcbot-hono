@@ -1,4 +1,4 @@
-import { Moon, RefreshCw, Search, Sun } from 'lucide-react';
+import { Loader2, Moon, RefreshCw, Search, Sun } from 'lucide-react';
 import {
   type MouseEvent,
   useCallback,
@@ -10,6 +10,13 @@ import { flushSync } from 'react-dom';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Drawer,
   DrawerContent,
@@ -580,6 +587,25 @@ export function App() {
             </div>
           </DrawerContent>
         </Drawer>
+
+        <Dialog open={loadingSection}>
+          <DialogContent
+            showCloseButton={false}
+            className="max-w-xs p-6 text-center"
+          >
+            <DialogHeader className="items-center gap-3 text-center">
+              <div className="flex size-11 items-center justify-center rounded-full border border-border bg-muted/50">
+                <Loader2 className="size-5 animate-spin text-primary" />
+              </div>
+              <DialogTitle className="text-base">
+                Memuat {SECTION_TITLES[activeSection].toLowerCase()}
+              </DialogTitle>
+              <DialogDescription>
+                Mengambil data terbaru dari Supabase...
+              </DialogDescription>
+            </DialogHeader>
+          </DialogContent>
+        </Dialog>
 
         <Toaster />
       </SidebarProvider>
