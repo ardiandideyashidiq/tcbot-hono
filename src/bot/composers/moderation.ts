@@ -8,6 +8,7 @@ import {
   resolveTargetUser,
 } from '../db';
 import { t } from '../i18n';
+import { buildCheckCard, buildModerationActionCard } from '../ui';
 
 export const moderationComposer = new Composer<BotContext>();
 
@@ -22,6 +23,45 @@ async function ensureTargetPlaceholderUser(
       { user_id: userId },
       { onConflict: 'user_id', ignoreDuplicates: true },
     );
+}
+
+async function fetchUserModerationSnapshot(
+  ctx: BotContext,
+  targetId: number,
+): Promise<{ banRef: string | null; muteRef: string | null; warns: number }> {
+  if (!ctx.supabase || !targetId) {
+    return { banRef: null, muteRef: null, warns: 0 };
+  }
+
+  const [{ data: ban }, { data: mute }, { count: warnCount }] =
+    await Promise.all([
+      ctx.supabase
+        .from('moderation_actions')
+        .select('external_ref')
+        .eq('target_user_id', targetId)
+        .eq('action_type', 'ban')
+        .eq('status', 'active')
+        .maybeSingle(),
+      ctx.supabase
+        .from('moderation_actions')
+        .select('external_ref')
+        .eq('target_user_id', targetId)
+        .eq('action_type', 'mute')
+        .eq('status', 'active')
+        .maybeSingle(),
+      ctx.supabase
+        .from('moderation_actions')
+        .select('id', { count: 'exact', head: true })
+        .eq('target_user_id', targetId)
+        .eq('action_type', 'warn')
+        .eq('status', 'completed'),
+    ]);
+
+  return {
+    banRef: ban?.external_ref ?? null,
+    muteRef: mute?.external_ref ?? null,
+    warns: warnCount ?? 0,
+  };
 }
 
 moderationComposer.command(['tcban', 'tcb'], async (ctx) => {
@@ -99,13 +139,21 @@ moderationComposer.command(['tcban', 'tcb'], async (ctx) => {
     affectedGroups = results.filter((r) => r.status === 'fulfilled').length;
   }
 
-  await ctx.reply(
-    t(ctx.locale, 'mod.banned', {
-      target: target.label,
-      count: affectedGroups,
-      ref,
-    }),
-  );
+  const { formatted, keyboard } = buildModerationActionCard({
+    locale: ctx.locale,
+    title: ctx.locale === 'id-ID' ? '🔨 Ban Federasi' : '🔨 Federation Ban',
+    targetLabel: target.label,
+    targetId: target.userId,
+    count: affectedGroups,
+    reason,
+    ref,
+    actionType: 'ban',
+  });
+
+  await ctx.reply(formatted.text, {
+    entities: formatted.entities,
+    reply_markup: keyboard,
+  });
 });
 
 moderationComposer.command(['tcunban', 'tcunb'], async (ctx) => {
@@ -240,13 +288,21 @@ moderationComposer.command(['tcmute', 'tcm'], async (ctx) => {
     affectedGroups = results.filter((r) => r.status === 'fulfilled').length;
   }
 
-  await ctx.reply(
-    t(ctx.locale, 'mod.muted', {
-      target: target.label,
-      count: affectedGroups,
-      ref,
-    }),
-  );
+  const { formatted, keyboard } = buildModerationActionCard({
+    locale: ctx.locale,
+    title: ctx.locale === 'id-ID' ? '🔇 Bisu Federasi' : '🔇 Federation Mute',
+    targetLabel: target.label,
+    targetId: target.userId,
+    count: affectedGroups,
+    reason,
+    ref,
+    actionType: 'mute',
+  });
+
+  await ctx.reply(formatted.text, {
+    entities: formatted.entities,
+    reply_markup: keyboard,
+  });
 });
 
 moderationComposer.command(['tcunmute', 'tcunm'], async (ctx) => {
@@ -392,25 +448,42 @@ moderationComposer.command(['tcwarn', 'tcw'], async (ctx) => {
         targets.map((cid) => ctx.api.banChatMember(cid, target.userId)),
       );
 
-      await ctx.reply(
-        t(ctx.locale, 'mod.autoban', {
-          warns: warnCount,
-          limit: warnLimit,
-          target: target.label,
-        }),
-      );
+      const { formatted, keyboard } = buildModerationActionCard({
+        locale: ctx.locale,
+        title:
+          ctx.locale === 'id-ID'
+            ? '🔨 Auto-Ban Federasi'
+            : '🔨 Federation Auto-Ban',
+        targetLabel: target.label,
+        targetId: target.userId,
+        reason: `Warn limit (${warnCount}/${warnLimit})`,
+        ref,
+        actionType: 'ban',
+      });
+
+      await ctx.reply(formatted.text, {
+        entities: formatted.entities,
+        reply_markup: keyboard,
+      });
       return;
     }
   }
 
-  await ctx.reply(
-    t(ctx.locale, 'mod.warned', {
-      target: target.label,
-      warns: warnCount,
-      limit: warnLimit,
-      ref,
-    }),
-  );
+  const { formatted, keyboard } = buildModerationActionCard({
+    locale: ctx.locale,
+    title: ctx.locale === 'id-ID' ? '⚠️ Peringatan' : '⚠️ Warning',
+    targetLabel: target.label,
+    targetId: target.userId,
+    reason,
+    ref,
+    extraLine: `Warn: ${target.label} (${warnCount}/${warnLimit})`,
+    actionType: 'warn',
+  });
+
+  await ctx.reply(formatted.text, {
+    entities: formatted.entities,
+    reply_markup: keyboard,
+  });
 });
 
 moderationComposer.command(['checkme', 'cme', 'check', 'c'], async (ctx) => {
@@ -444,47 +517,112 @@ moderationComposer.command(['checkme', 'cme', 'check', 'c'], async (ctx) => {
     }
   }
 
-  if (!ctx.supabase || !targetId) {
-    await ctx.reply(t(ctx.locale, 'check.clean', { target: targetLabel }));
-    return;
+  const snap = await fetchUserModerationSnapshot(ctx, targetId);
+  const { formatted, keyboard } = buildCheckCard({
+    locale: ctx.locale,
+    targetLabel,
+    targetId,
+    ...snap,
+  });
+
+  await ctx.reply(formatted.text, {
+    entities: formatted.entities,
+    reply_markup: keyboard,
+  });
+});
+
+moderationComposer.callbackQuery('nav:checkme', async (ctx) => {
+  await ctx.answerCallbackQuery();
+  const targetId = ctx.from.id;
+  const targetLabel = ctx.from.username
+    ? `@${ctx.from.username}`
+    : String(targetId);
+  const snap = await fetchUserModerationSnapshot(ctx, targetId);
+  const { formatted, keyboard } = buildCheckCard({
+    locale: ctx.locale,
+    targetLabel,
+    targetId,
+    ...snap,
+  });
+  await ctx.editMessageText(formatted.text, {
+    entities: formatted.entities,
+    reply_markup: keyboard,
+  });
+});
+
+moderationComposer.callbackQuery(/^mod:check:(\d+)$/, async (ctx) => {
+  const targetId = Number(ctx.match[1]);
+  const isSelf = targetId === ctx.from.id;
+  if (!isSelf) {
+    const role = await getUserRole(
+      ctx.supabase,
+      ctx.from.id,
+      ctx.appEnv.OWNER_ID,
+    );
+    if (!isStaffRole(role)) {
+      await ctx.answerCallbackQuery({
+        text: t(ctx.locale, 'err.staff_only'),
+        show_alert: true,
+      });
+      return;
+    }
   }
 
-  const [{ data: ban }, { data: mute }, { count: warnCount }] =
-    await Promise.all([
-      ctx.supabase
-        .from('moderation_actions')
-        .select('external_ref')
-        .eq('target_user_id', targetId)
-        .eq('action_type', 'ban')
-        .eq('status', 'active')
-        .maybeSingle(),
-      ctx.supabase
-        .from('moderation_actions')
-        .select('external_ref')
-        .eq('target_user_id', targetId)
-        .eq('action_type', 'mute')
-        .eq('status', 'active')
-        .maybeSingle(),
-      ctx.supabase
-        .from('moderation_actions')
-        .select('id', { count: 'exact', head: true })
-        .eq('target_user_id', targetId)
-        .eq('action_type', 'warn')
-        .eq('status', 'completed'),
-    ]);
+  await ctx.answerCallbackQuery();
+  const snap = await fetchUserModerationSnapshot(ctx, targetId);
+  const { formatted, keyboard } = buildCheckCard({
+    locale: ctx.locale,
+    targetLabel: String(targetId),
+    targetId,
+    ...snap,
+  });
+  await ctx.editMessageText(formatted.text, {
+    entities: formatted.entities,
+    reply_markup: keyboard,
+  });
+});
 
-  const warns = warnCount ?? 0;
-  if (!ban && !mute && warns === 0) {
-    await ctx.reply(t(ctx.locale, 'check.clean', { target: targetLabel }));
-    return;
-  }
-
-  await ctx.reply(
-    t(ctx.locale, 'check.summary', {
-      target: targetLabel,
-      ban: ban ? ban.external_ref : '-',
-      mute: mute ? mute.external_ref : '-',
-      warns,
-    }),
+moderationComposer.callbackQuery(/^mod:(unban|unmute):(\d+)$/, async (ctx) => {
+  const action = ctx.match[1] as 'unban' | 'unmute';
+  const targetId = Number(ctx.match[2]);
+  const role = await getUserRole(
+    ctx.supabase,
+    ctx.from.id,
+    ctx.appEnv.OWNER_ID,
   );
+  if (!isStaffRole(role)) {
+    await ctx.answerCallbackQuery({
+      text: t(ctx.locale, 'err.staff_only'),
+      show_alert: true,
+    });
+    return;
+  }
+
+  if (ctx.supabase) {
+    await ctx.supabase
+      .from('moderation_actions')
+      .update({
+        status: 'revoked',
+        revoked_at: new Date().toISOString(),
+        revoked_by_user_id: ctx.from.id,
+      })
+      .eq('target_user_id', targetId)
+      .eq('action_type', action === 'unban' ? 'ban' : 'mute')
+      .eq('status', 'active');
+  }
+
+  await ctx.answerCallbackQuery({
+    text: action === 'unban' ? 'Ban dicabut' : 'Bisu dibuka',
+  });
+  const snap = await fetchUserModerationSnapshot(ctx, targetId);
+  const { formatted, keyboard } = buildCheckCard({
+    locale: ctx.locale,
+    targetLabel: String(targetId),
+    targetId,
+    ...snap,
+  });
+  await ctx.editMessageText(formatted.text, {
+    entities: formatted.entities,
+    reply_markup: keyboard,
+  });
 });

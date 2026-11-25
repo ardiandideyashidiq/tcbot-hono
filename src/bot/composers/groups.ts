@@ -1,4 +1,5 @@
-import { Composer } from 'grammy';
+import { b, code, fmt } from '@grammyjs/parse-mode';
+import { Composer, InlineKeyboard } from 'grammy';
 import type { BotContext } from '../context';
 import { getUserRole, isAdminOrOwner } from '../db';
 import { t } from '../i18n';
@@ -35,7 +36,11 @@ groupsComposer.command(['tcconnect', 'tccon'], async (ctx) => {
   const chatId = ctx.chat.id;
   const title =
     'title' in ctx.chat && ctx.chat.title ? ctx.chat.title : String(chatId);
-  await ctx.reply(t(ctx.locale, 'group.connected', { title }));
+
+  const formatted = fmt`${b}${t(ctx.locale, 'group.connected', { title })}${b}
+Chat ID: ${code}${String(chatId)}${code}`;
+
+  await ctx.reply(formatted.text, { entities: formatted.entities });
 });
 
 groupsComposer.command(['tcdisconnect', 'tcdiscon'], async (ctx) => {
@@ -97,6 +102,19 @@ groupsComposer.command(['tcgroups', 'tcg'], async (ctx) => {
     .in('chat_id', ids);
 
   const titleMap = new Map((chats ?? []).map((c) => [c.chat_id, c.title]));
-  const lines = ids.map((id) => `- ${titleMap.get(id) ?? id} (${id})`);
-  await ctx.reply(lines.join('\n'));
+  const header = fmt`${b}${ctx.locale === 'id-ID' ? 'Grup Terhubung' : 'Connected Groups'} (${String(ids.length)})${b}`;
+  const list = ids
+    .map((id) => `• ${titleMap.get(id) ?? id} (${id})`)
+    .join('\n');
+  const combined = fmt`${header}\n${list}`;
+
+  const keyboard = new InlineKeyboard().text(
+    ctx.locale === 'id-ID' ? '✖ Tutup' : '✖ Close',
+    'nav:close',
+  );
+
+  await ctx.reply(combined.text, {
+    entities: combined.entities,
+    reply_markup: keyboard,
+  });
 });

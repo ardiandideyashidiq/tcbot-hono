@@ -147,16 +147,20 @@ function makeMessageUpdate(
 }
 
 describe('Telegram Bot MVP end-to-end command handlers', () => {
-  it('/start and /help reply in resolved user locale', async () => {
+  it('/start and /help reply in resolved user locale with entities and inline buttons', async () => {
     const { bot, calls } = createHarness();
     await bot.handleUpdate(makeMessageUpdate('/start', { languageCode: 'id' }));
     await bot.handleUpdate(makeMessageUpdate('/help', { languageCode: 'en' }));
 
     expect(calls[0]?.method).toBe('sendMessage');
-    expect(String(calls[0]?.payload.text)).toContain('tcbot aktif');
+    expect(String(calls[0]?.payload.text)).toContain('Cloudflare Workers');
+    expect(calls[0]?.payload.entities).toBeDefined();
+    expect(calls[0]?.payload.reply_markup).toBeDefined();
 
     expect(calls[1]?.method).toBe('sendMessage');
     expect(String(calls[1]?.payload.text)).toContain('Available commands:');
+    expect(calls[1]?.payload.entities).toBeDefined();
+    expect(calls[1]?.payload.reply_markup).toBeDefined();
   });
 
   it('/ping replies and edits with latency', async () => {
@@ -259,5 +263,49 @@ describe('Telegram Bot MVP end-to-end command handlers', () => {
       }),
     );
     expect(String(calls[2]?.payload.text)).toContain('@target_user (1/3)');
+    expect(calls[2]?.payload.entities).toBeDefined();
+    expect(calls[2]?.payload.reply_markup).toBeDefined();
+  });
+
+  it('navigation and moderation inline callbacks edit messages and answer queries', async () => {
+    const { bot, calls } = createHarness();
+    await bot.handleUpdate({
+      update_id: 1001,
+      callback_query: {
+        id: 'cb_nav_help',
+        from: { id: 1001, is_bot: false, first_name: 'Owner' },
+        chat_instance: 'ci_nav',
+        data: 'nav:help',
+        message: {
+          message_id: 42,
+          date: Math.floor(Date.now() / 1000),
+          chat: { id: 1001, type: 'private', first_name: 'Owner' },
+          text: 'Start',
+        },
+      },
+    });
+
+    expect(calls.some((c) => c.method === 'answerCallbackQuery')).toBe(true);
+    const editHelp = calls.find((c) => c.method === 'editMessageText');
+    expect(String(editHelp?.payload.text)).toContain('Daftar Perintah');
+
+    await bot.handleUpdate({
+      update_id: 1002,
+      callback_query: {
+        id: 'cb_mod_check',
+        from: { id: 1001, is_bot: false, first_name: 'Owner' },
+        chat_instance: 'ci_mod',
+        data: 'mod:check:555111',
+        message: {
+          message_id: 43,
+          date: Math.floor(Date.now() / 1000),
+          chat: { id: 1001, type: 'private', first_name: 'Owner' },
+          text: 'Warn',
+        },
+      },
+    });
+
+    const editCheck = calls.filter((c) => c.method === 'editMessageText')[1];
+    expect(String(editCheck?.payload.text)).toContain('555111');
   });
 });
