@@ -163,14 +163,15 @@ describe('Telegram Bot MVP end-to-end command handlers', () => {
     expect(calls[1]?.payload.reply_markup).toBeDefined();
   });
 
-  it('/ping replies and edits with latency', async () => {
+  it('/ping replies and edits with latency and inline keyboard', async () => {
     const { bot, calls } = createHarness();
     await bot.handleUpdate(makeMessageUpdate('/ping'));
 
     expect(calls[0]?.method).toBe('sendMessage');
-    expect(calls[0]?.payload.text).toBe('pong');
+    expect(String(calls[0]?.payload.text)).toContain('🏓 Pong');
     expect(calls[1]?.method).toBe('editMessageText');
-    expect(String(calls[1]?.payload.text)).toMatch(/^pong \(\d+ms\)$/);
+    expect(String(calls[1]?.payload.text)).toMatch(/Latensi|Latency/);
+    expect(calls[1]?.payload.reply_markup).toBeDefined();
   });
 
   it('/language sends inline keyboard and callback updates locale', async () => {
@@ -199,7 +200,8 @@ describe('Telegram Bot MVP end-to-end command handlers', () => {
     const cbAck = calls.find((c) => c.method === 'answerCallbackQuery');
     const cbEdit = calls.find((c) => c.method === 'editMessageText');
     expect(cbAck).toBeDefined();
-    expect(String(cbEdit?.payload.text)).toBe('Language updated to en-US.');
+    expect(String(cbEdit?.payload.text)).toContain('en-US');
+    expect(cbEdit?.payload.entities).toBeDefined();
   });
 
   it('/tcconnect rejects non-staff and private chats, allows owner in supergroup', async () => {

@@ -8,7 +8,11 @@ import {
   resolveTargetUser,
 } from '../db';
 import { t } from '../i18n';
-import { buildCheckCard, buildModerationActionCard } from '../ui';
+import {
+  buildCheckCard,
+  buildModerationActionCard,
+  buildModerationRevokedCard,
+} from '../ui';
 
 export const moderationComposer = new Composer<BotContext>();
 
@@ -200,12 +204,18 @@ moderationComposer.command(['tcunban', 'tcunb'], async (ctx) => {
     affectedGroups = results.filter((r) => r.status === 'fulfilled').length;
   }
 
-  await ctx.reply(
-    t(ctx.locale, 'mod.unbanned', {
-      target: target.label,
-      count: affectedGroups,
-    }),
-  );
+  const { formatted, keyboard } = buildModerationRevokedCard({
+    locale: ctx.locale,
+    title: ctx.locale === 'id-ID' ? '🔓 Ban Dicabut' : '🔓 Ban Lifted',
+    targetLabel: target.label,
+    targetId: target.userId,
+    count: affectedGroups,
+  });
+
+  await ctx.reply(formatted.text, {
+    entities: formatted.entities,
+    reply_markup: keyboard,
+  });
 });
 
 moderationComposer.command(['tcmute', 'tcm'], async (ctx) => {
@@ -360,12 +370,18 @@ moderationComposer.command(['tcunmute', 'tcunm'], async (ctx) => {
     affectedGroups = results.filter((r) => r.status === 'fulfilled').length;
   }
 
-  await ctx.reply(
-    t(ctx.locale, 'mod.unmuted', {
-      target: target.label,
-      count: affectedGroups,
-    }),
-  );
+  const { formatted, keyboard } = buildModerationRevokedCard({
+    locale: ctx.locale,
+    title: ctx.locale === 'id-ID' ? '🔊 Bisu Dibuka' : '🔊 Unmuted',
+    targetLabel: target.label,
+    targetId: target.userId,
+    count: affectedGroups,
+  });
+
+  await ctx.reply(formatted.text, {
+    entities: formatted.entities,
+    reply_markup: keyboard,
+  });
 });
 
 moderationComposer.command(['tcwarn', 'tcw'], async (ctx) => {
@@ -517,12 +533,18 @@ moderationComposer.command(['checkme', 'cme', 'check', 'c'], async (ctx) => {
     }
   }
 
+  const viewerRole = await getUserRole(
+    ctx.supabase,
+    ctx.from?.id ?? 0,
+    ctx.appEnv.OWNER_ID,
+  );
   const snap = await fetchUserModerationSnapshot(ctx, targetId);
   const { formatted, keyboard } = buildCheckCard({
     locale: ctx.locale,
     targetLabel,
     targetId,
     ...snap,
+    showStaffActions: isStaffRole(viewerRole),
   });
 
   await ctx.reply(formatted.text, {
@@ -537,12 +559,18 @@ moderationComposer.callbackQuery('nav:checkme', async (ctx) => {
   const targetLabel = ctx.from.username
     ? `@${ctx.from.username}`
     : String(targetId);
+  const viewerRole = await getUserRole(
+    ctx.supabase,
+    ctx.from.id,
+    ctx.appEnv.OWNER_ID,
+  );
   const snap = await fetchUserModerationSnapshot(ctx, targetId);
   const { formatted, keyboard } = buildCheckCard({
     locale: ctx.locale,
     targetLabel,
     targetId,
     ...snap,
+    showStaffActions: isStaffRole(viewerRole),
   });
   await ctx.editMessageText(formatted.text, {
     entities: formatted.entities,
@@ -553,19 +581,17 @@ moderationComposer.callbackQuery('nav:checkme', async (ctx) => {
 moderationComposer.callbackQuery(/^mod:check:(\d+)$/, async (ctx) => {
   const targetId = Number(ctx.match[1]);
   const isSelf = targetId === ctx.from.id;
-  if (!isSelf) {
-    const role = await getUserRole(
-      ctx.supabase,
-      ctx.from.id,
-      ctx.appEnv.OWNER_ID,
-    );
-    if (!isStaffRole(role)) {
-      await ctx.answerCallbackQuery({
-        text: t(ctx.locale, 'err.staff_only'),
-        show_alert: true,
-      });
-      return;
-    }
+  const role = await getUserRole(
+    ctx.supabase,
+    ctx.from.id,
+    ctx.appEnv.OWNER_ID,
+  );
+  if (!isSelf && !isStaffRole(role)) {
+    await ctx.answerCallbackQuery({
+      text: t(ctx.locale, 'err.staff_only'),
+      show_alert: true,
+    });
+    return;
   }
 
   await ctx.answerCallbackQuery();
@@ -575,6 +601,7 @@ moderationComposer.callbackQuery(/^mod:check:(\d+)$/, async (ctx) => {
     targetLabel: String(targetId),
     targetId,
     ...snap,
+    showStaffActions: isStaffRole(role),
   });
   await ctx.editMessageText(formatted.text, {
     entities: formatted.entities,

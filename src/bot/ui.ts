@@ -6,29 +6,45 @@ export function buildStartCard(
   locale: Locale,
   communityName: string,
   firstName?: string,
+  isAdmin = false,
 ): { formatted: FormattedString; keyboard: InlineKeyboard } {
-  const greeting = firstName ? `Halo, ${firstName}!` : 'Halo!';
-  const formatted =
-    locale === 'id-ID'
-      ? fmt`${b}${communityName} Moderation Bot${b}
+  const isId = locale === 'id-ID';
+  const greeting = isId
+    ? firstName
+      ? `Halo, ${firstName}!`
+      : 'Halo!'
+    : firstName
+      ? `Hello, ${firstName}!`
+      : 'Hello!';
+
+  const formatted = isId
+    ? fmt`${b}${communityName} Moderation Bot${b}
 
 ${greeting}
 Bot aktif di Cloudflare Workers dan siap menjaga federasi Anda.
 
 Gunakan tombol di bawah untuk navigasi cepat atau ketik ${code}/help${code}.`
-      : fmt`${b}${communityName} Moderation Bot${b}
+    : fmt`${b}${communityName} Moderation Bot${b}
 
-${firstName ? `Hello, ${firstName}!` : 'Hello!'}
+${greeting}
 Bot is running on Cloudflare Workers and ready to guard your federation.
 
 Use the buttons below for quick navigation or type ${code}/help${code}.`;
 
   const keyboard = new InlineKeyboard()
-    .text(locale === 'id-ID' ? '📖 Bantuan' : '📖 Help', 'nav:help')
-    .text(locale === 'id-ID' ? '🛡 Status Saya' : '🛡 My Status', 'nav:checkme')
+    .text(isId ? '📖 Bantuan' : '📖 Help', 'nav:help')
+    .text(isId ? '🛡 Status Saya' : '🛡 My Status', 'nav:checkme')
     .row()
-    .text(locale === 'id-ID' ? '🌐 Bahasa' : '🌐 Language', 'nav:lang')
-    .text(locale === 'id-ID' ? '✖ Tutup' : '✖ Close', 'nav:close');
+    .text(isId ? '🌐 Bahasa' : '🌐 Language', 'nav:lang')
+    .text('🏓 Ping', 'nav:ping');
+
+  if (isAdmin) {
+    keyboard
+      .row()
+      .text(isId ? '👥 Grup Terhubung' : '👥 Connected Groups', 'nav:groups');
+  }
+
+  keyboard.row().text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
 
   return { formatted, keyboard };
 }
@@ -37,9 +53,9 @@ export function buildHelpCard(locale: Locale): {
   formatted: FormattedString;
   keyboard: InlineKeyboard;
 } {
-  const formatted =
-    locale === 'id-ID'
-      ? fmt`${b}Daftar Perintah${b}
+  const isId = locale === 'id-ID';
+  const formatted = isId
+    ? fmt`${b}Daftar Perintah${b}
 
 ${b}Umum${b}
 • ${code}/start${code} — Pesan pembuka & menu utama
@@ -58,7 +74,7 @@ ${b}Staf & Moderasi${b}
 • ${code}/tcunmute${code} ${i}<user>${i} — Buka bisu
 • ${code}/tcwarn${code} ${i}<user> [alasan]${i} — Beri peringatan
 • ${code}/check${code} ${i}<user>${i} — Periksa status pengguna`
-      : fmt`${b}Available commands:${b}
+    : fmt`${b}Available commands:${b}
 
 ${b}General${b}
 • ${code}/start${code} — Welcome message & main menu
@@ -79,8 +95,29 @@ ${b}Staff & Moderation${b}
 • ${code}/check${code} ${i}<user>${i} — Inspect user status`;
 
   const keyboard = new InlineKeyboard()
-    .text(locale === 'id-ID' ? '← Kembali' : '← Back', 'nav:start')
-    .text(locale === 'id-ID' ? '✖ Tutup' : '✖ Close', 'nav:close');
+    .text(isId ? '← Kembali' : '← Back', 'nav:start')
+    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
+
+  return { formatted, keyboard };
+}
+
+export function buildPingCard(
+  locale: Locale,
+  elapsedMs?: number,
+): { formatted: FormattedString; keyboard: InlineKeyboard } {
+  const isId = locale === 'id-ID';
+  const latencyText =
+    elapsedMs !== undefined
+      ? fmt`\n${b}${isId ? 'Latensi' : 'Latency'}:${b} ${code}${String(elapsedMs)}ms${code}`
+      : '';
+
+  const formatted = fmt`${b}🏓 Pong${b}${latencyText}`;
+
+  const keyboard = new InlineKeyboard()
+    .text(isId ? '↻ Ping Lagi' : '↻ Ping Again', 'nav:ping')
+    .text(isId ? '← Kembali' : '← Back', 'nav:start')
+    .row()
+    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
 
   return { formatted, keyboard };
 }
@@ -89,11 +126,11 @@ export function buildLanguageCard(locale: Locale): {
   formatted: FormattedString;
   keyboard: InlineKeyboard;
 } {
-  const formatted =
-    locale === 'id-ID'
-      ? fmt`${b}Pengaturan Bahasa${b}
+  const isId = locale === 'id-ID';
+  const formatted = isId
+    ? fmt`${b}Pengaturan Bahasa${b}
 Bahasa aktif saat ini: ${code}${locale}${code}`
-      : fmt`${b}Language Settings${b}
+    : fmt`${b}Language Settings${b}
 Current active language: ${code}${locale}${code}`;
 
   const keyboard = new InlineKeyboard()
@@ -106,8 +143,30 @@ Current active language: ${code}${locale}${code}`;
       'lang:set:id-ID',
     )
     .row()
-    .text(locale === 'id-ID' ? '← Kembali' : '← Back', 'nav:start')
-    .text(locale === 'id-ID' ? '✖ Tutup' : '✖ Close', 'nav:close');
+    .text(isId ? '← Kembali' : '← Back', 'nav:start')
+    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
+
+  return { formatted, keyboard };
+}
+
+export function buildGroupsCard(
+  locale: Locale,
+  groups: Array<{ chatId: number; title: string }>,
+): { formatted: FormattedString; keyboard: InlineKeyboard } {
+  const isId = locale === 'id-ID';
+
+  const formatted =
+    groups.length === 0
+      ? fmt`${b}${isId ? 'Grup Terhubung' : 'Connected Groups'}${b}
+${isId ? 'Belum ada grup terhubung.' : 'No connected groups yet.'}`
+      : fmt`${b}${isId ? 'Grup Terhubung' : 'Connected Groups'} (${String(groups.length)})${b}
+${groups.map((g) => `• ${g.title} (${g.chatId})`).join('\n')}`;
+
+  const keyboard = new InlineKeyboard()
+    .text(isId ? '↻ Segarkan' : '↻ Refresh', 'nav:groups')
+    .text(isId ? '← Kembali' : '← Back', 'nav:start')
+    .row()
+    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
 
   return { formatted, keyboard };
 }
@@ -166,6 +225,27 @@ ${b}Target:${b} ${targetLabel} (${code}${String(targetId)}${code})${countLine}${
   return { formatted, keyboard };
 }
 
+export function buildModerationRevokedCard(opts: {
+  locale: Locale;
+  title: string;
+  targetLabel: string;
+  targetId: number;
+  count: number;
+}): { formatted: FormattedString; keyboard: InlineKeyboard } {
+  const { locale, title, targetLabel, targetId, count } = opts;
+  const isId = locale === 'id-ID';
+
+  const formatted = fmt`${b}${title}${b}
+${b}Target:${b} ${targetLabel} (${code}${String(targetId)}${code})
+${b}${isId ? 'Grup terdampak' : 'Affected groups'}:${b} ${String(count)}`;
+
+  const keyboard = new InlineKeyboard()
+    .text(isId ? '🔍 Cek Status' : '🔍 Check', `mod:check:${targetId}`)
+    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
+
+  return { formatted, keyboard };
+}
+
 export function buildCheckCard(opts: {
   locale: Locale;
   targetLabel: string;
@@ -173,8 +253,17 @@ export function buildCheckCard(opts: {
   banRef: string | null;
   muteRef: string | null;
   warns: number;
+  showStaffActions?: boolean;
 }): { formatted: FormattedString; keyboard: InlineKeyboard } {
-  const { locale, targetLabel, targetId, banRef, muteRef, warns } = opts;
+  const {
+    locale,
+    targetLabel,
+    targetId,
+    banRef,
+    muteRef,
+    warns,
+    showStaffActions = false,
+  } = opts;
   const isId = locale === 'id-ID';
 
   const formatted =
@@ -187,8 +276,27 @@ ${b}Target:${b} ${targetLabel} (${code}${String(targetId)}${code})
 • ${b}${isId ? 'Bisu' : 'Mute'}:${b} ${muteRef ? fmt`${code}${muteRef}${code}` : isId ? 'Tidak ada' : 'None'}
 • ${b}${isId ? 'Peringatan aktif' : 'Active warns'}:${b} ${String(warns)}`;
 
-  const keyboard = new InlineKeyboard()
+  const keyboard = new InlineKeyboard();
+  if (showStaffActions && (banRef || muteRef)) {
+    if (banRef) {
+      keyboard.text(
+        isId ? '🔓 Cabut Ban' : '🔓 Unban',
+        `mod:unban:${targetId}`,
+      );
+    }
+    if (muteRef) {
+      keyboard.text(
+        isId ? '🔊 Buka Bisu' : '🔊 Unmute',
+        `mod:unmute:${targetId}`,
+      );
+    }
+    keyboard.row();
+  }
+
+  keyboard
     .text(isId ? '↻ Segarkan' : '↻ Refresh', `mod:check:${targetId}`)
+    .text(isId ? '← Kembali' : '← Back', 'nav:start')
+    .row()
     .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
 
   return { formatted, keyboard };
