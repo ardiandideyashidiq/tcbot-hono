@@ -247,4 +247,34 @@ describe('POST /webhook/telegram end-to-end reliability', () => {
 
     expect(res.status).toBeGreaterThanOrEqual(400);
   });
+
+  it('returns 200 immediately and schedules handleUpdate on executionCtx.waitUntil when available', async () => {
+    const calls = installTelegramFetchStub();
+    const pending: Promise<unknown>[] = [];
+    const mockExecCtx = {
+      waitUntil(promise: Promise<unknown>) {
+        pending.push(promise);
+      },
+      passThroughOnException() {},
+    } as unknown as ExecutionContext;
+
+    const res = await app.request(
+      '/webhook/telegram',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Telegram-Bot-Api-Secret-Token': 'local_webhook_secret',
+        },
+        body: JSON.stringify(makeStartUpdate(104)),
+      },
+      webhookEnv,
+      mockExecCtx,
+    );
+
+    expect(res.status).toBe(200);
+    expect(pending).toHaveLength(1);
+    await Promise.all(pending);
+    expect(calls.some((c) => c.method === 'sendMessage')).toBe(true);
+  });
 });

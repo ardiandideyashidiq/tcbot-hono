@@ -1,39 +1,34 @@
-import { webhookCallback } from 'grammy';
-import { type Context, Hono } from 'hono';
+import type { Bot } from 'grammy';
+import type { Update } from 'grammy/types';
+import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import {
   createBot,
   runWithExecutionContext,
   type WaitUntilContext,
 } from '../bot';
+import type { BotContext } from '../bot/context';
 import type { AppEnv } from '../lib/env';
 
-const MAX_CACHED_WEBHOOK_HANDLERS = 8;
-const webhookHandlerCache = new Map<
-  string,
-  (c: Context<AppEnv>) => Promise<Response>
->();
+const MAX_CACHED_BOTS = 8;
+const botCache = new Map<string, Bot<BotContext>>();
 
-function getWebhookHandler(env: CloudflareBindings, secretToken: string) {
-  const cacheKey = `${env.TELEGRAM_BOT_TOKEN}\0${secretToken}\0${env.SUPABASE_URL ?? ''}\0${env.OWNER_ID ?? ''}`;
-  const cached = webhookHandlerCache.get(cacheKey);
+function getBot(env: CloudflareBindings): Bot<BotContext> {
+  const cacheKey = `${env.TELEGRAM_BOT_TOKEN}\0${env.SUPABASE_URL ?? ''}\0${env.OWNER_ID ?? ''}`;
+  const cached = botCache.get(cacheKey);
   if (cached) {
     return cached;
   }
 
   const bot = createBot(env);
-  const handler = webhookCallback(bot, 'hono', {
-    secretToken,
-  }) as unknown as (c: Context<AppEnv>) => Promise<Response>;
-
-  if (webhookHandlerCache.size >= MAX_CACHED_WEBHOOK_HANDLERS) {
-    const oldestKey = webhookHandlerCache.keys().next().value;
+  if (botCache.size >= MAX_CACHED_BOTS) {
+    const oldestKey = botCache.keys().next().value;
     if (oldestKey !== undefined) {
-      webhookHandlerCache.delete(oldestKey);
+      botCache.delete(oldestKey);
     }
   }
-  webhookHandlerCache.set(cacheKey, handler);
-  return handler;
+  botCache.set(cacheKey, bot);
+  return bot;
 }
 
 function constantTimeEqual(a: string, b: string): boolean {
@@ -74,7 +69,21 @@ const webhookApp = new Hono<AppEnv>()
       return c.text('Unauthorized', 401);
     }
 
-    const handleUpdate = getWebhookHandler(c.env, secretToken);
+    let update: Update;
+    try {
+      update = (await c.req.json()) as Update;
+    } catch {
+      return c.json({ ok: false, error: 'Invalid JSON payload' }, 400);
+    }
+    if (
+      !update ||
+      typeof update !== 'object' ||
+      typeof update.update_id !== 'number'
+    ) {
+      return c.json({ ok: false, error: 'Invalid Telegram update' }, 400);
+    }
+
+    const bot = getBot(c.env);
     let execCtx: WaitUntilContext | undefined;
     try {
       execCtx = c.executionCtx;
@@ -82,7 +91,24 @@ const webhookApp = new Hono<AppEnv>()
       execCtx = undefined;
     }
 
-    return runWithExecutionContext(execCtx, () => handleUpdate(c));
+    const runUpdate = async () => {
+      if (!bot.isInited()) {
+        await bot.init();
+      }
+      await bot.handleUpdate(update);
+    };
+
+    if (execCtx) {
+      execCtx.waitUntil(
+        runWithExecutionContext(execCtx, runUpdate).catch((err) => {
+          console.error('Webhook background update error:', err);
+        }),
+      );
+      return c.text('OK', 200);
+    }
+
+    await runWithExecutionContext(undefined, runUpdate);
+    return c.text('OK', 200);
   });
 
 export default webhookApp;
