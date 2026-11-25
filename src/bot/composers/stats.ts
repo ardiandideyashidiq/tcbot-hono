@@ -13,10 +13,9 @@ async function buildStatsOverview(ctx: BotContext) {
   if (!ctx.supabase) {
     return {
       formatted: fmt`${b}📊 ${isId ? 'Statistik Federasi' : 'Federation Stats'}${b}\n${t(ctx.locale, 'err.db_unconfigured')}`,
-      keyboard: new InlineKeyboard().text(
-        isId ? '✖ Tutup' : '✖ Close',
-        'nav:close',
-      ),
+      keyboard: new InlineKeyboard()
+        .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close')
+        .danger(),
     };
   }
 
@@ -66,13 +65,20 @@ async function buildStatsOverview(ctx: BotContext) {
 
   const keyboard = new InlineKeyboard()
     .text(isId ? '🛡️ Staf' : '🛡️ Staff', 'stats:admins')
+    .primary()
     .text(isId ? '👥 Grup' : '👥 Groups', 'stats:chats:1')
+    .primary()
     .row()
     .text(isId ? '🔨 Daftar Ban' : '🔨 Bans', 'stats:bans:1')
+    .primary()
     .text(isId ? '🔍 Cari Ban' : '🔍 Search Ban', 'stats:search')
+    .primary()
     .row()
     .text(isId ? '↻ Segarkan' : '↻ Refresh', 'stats:main')
-    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
+    .primary()
+    .row()
+    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close')
+    .danger();
 
   return { formatted, keyboard };
 }
@@ -150,7 +156,9 @@ statsComposer.callbackQuery('stats:admins', async (ctx) => {
   const formatted = fmt`${b}🛡️ ${isId ? 'Staf Aktif' : 'Active Staff'}${b}\n\n${body}`;
   const kb = new InlineKeyboard()
     .text(isId ? '← Kembali' : '← Back', 'stats:main')
-    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close');
+    .primary()
+    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close')
+    .danger();
 
   await ctx
     .editMessageText(formatted.text, {
@@ -227,13 +235,13 @@ statsComposer.callbackQuery(/^stats:(chats|bans):(\d+)$/, async (ctx) => {
       : `🔨 ${isId ? 'Ban Aktif' : 'Active Bans'} (${page}/${totalPages})`;
 
   const kb = new InlineKeyboard();
-  if (page > 1) kb.text('◀️', `stats:${kind}:${page - 1}`);
-  if (page < totalPages) kb.text('▶️', `stats:${kind}:${page + 1}`);
+  if (page > 1) kb.text('◀️', `stats:${kind}:${page - 1}`).primary();
+  if (page < totalPages) kb.text('▶️', `stats:${kind}:${page + 1}`).primary();
   if (page > 1 || page < totalPages) kb.row();
-  kb.text(isId ? '← Kembali' : '← Back', 'stats:main').text(
-    isId ? '✖ Tutup' : '✖ Close',
-    'nav:close',
-  );
+  kb.text(isId ? '← Kembali' : '← Back', 'stats:main')
+    .primary()
+    .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close')
+    .danger();
 
   const formatted = fmt`${b}${title}${b}\n\n${body}`;
   await ctx

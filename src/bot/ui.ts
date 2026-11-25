@@ -175,7 +175,10 @@ Use the buttons below for quick navigation or type /help.`;
   return { formatted, keyboard };
 }
 
-export function buildHelpCard(locale: Locale): {
+export function buildHelpCard(
+  locale: Locale,
+  opts?: { includeDropdownTrigger?: boolean },
+): {
   formatted: FormattedString;
   keyboard: InlineKeyboard;
 } {
@@ -220,7 +223,17 @@ ${b}Staff & Moderation${b}
 • /tcwarn ${i}<user> [reason]${i} — Warn user
 • /check ${i}<user>${i} — Inspect user status${expandableBlockquote}`;
 
-  const keyboard = new InlineKeyboard()
+  const keyboard = new InlineKeyboard();
+  if (opts?.includeDropdownTrigger) {
+    keyboard
+      .text(
+        isId ? '▾ Pilih Topik Lengkap' : '▾ Select Topic',
+        'dd:help:open:general',
+      )
+      .primary()
+      .row();
+  }
+  keyboard
     .text(isId ? '← Kembali' : '← Back', 'nav:start')
     .primary()
     .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close')
@@ -244,9 +257,9 @@ export function buildPingCard(
   const keyboard = new InlineKeyboard()
     .text(isId ? '↻ Ping Lagi' : '↻ Ping Again', 'nav:ping')
     .success()
+    .row()
     .text(isId ? '← Kembali' : '← Back', 'nav:start')
     .primary()
-    .row()
     .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close')
     .danger();
 
@@ -308,9 +321,9 @@ ${expandableBlockquote}${groups.map((g) => `• ${g.title} (${g.chatId})`).join(
   const keyboard = new InlineKeyboard()
     .text(isId ? '↻ Segarkan' : '↻ Refresh', 'nav:groups')
     .primary()
+    .row()
     .text(isId ? '← Kembali' : '← Back', 'nav:start')
     .primary()
-    .row()
     .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close')
     .danger();
 
@@ -480,9 +493,9 @@ ${blockquote}• ${b}Ban:${b} ${banRef ? fmt`${code}${banRef}${code}` : isId ? '
     .row()
     .text(isId ? '↻ Segarkan' : '↻ Refresh', `mod:check:${targetId}`)
     .primary()
+    .row()
     .text(isId ? '← Kembali' : '← Back', 'nav:start')
     .primary()
-    .row()
     .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close')
     .danger();
 

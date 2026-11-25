@@ -94,14 +94,9 @@ ${expandableBlockquote}${isId ? bEntry.id : bEntry.en}${expandableBlockquote}`;
 }
 
 onCommand(generalComposer, 'help', async (ctx) => {
-  const { formatted, keyboard } = buildHelpCard(ctx.locale);
-  keyboard
-    .row()
-    .text(
-      ctx.locale === 'id-ID' ? '▾ Pilih Topik Lengkap' : '▾ Select Topic',
-      'dd:help:open:general',
-    )
-    .primary();
+  const { formatted, keyboard } = buildHelpCard(ctx.locale, {
+    includeDropdownTrigger: true,
+  });
   await ctx.reply(formatted.text, {
     entities: formatted.entities,
     reply_markup: keyboard,
@@ -191,10 +186,9 @@ onCommand(generalComposer, ['speedtest', 'st'], async (ctx) => {
 
   await ctx.reply(formatted.text, {
     entities: formatted.entities,
-    reply_markup: new InlineKeyboard().text(
-      isId ? '✖ Tutup' : '✖ Close',
-      'nav:close',
-    ),
+    reply_markup: new InlineKeyboard()
+      .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close')
+      .danger(),
   });
 });
 
@@ -380,8 +374,10 @@ ${isId ? 'Akses cepat ke kebijakan privasi, statistik, dan informasi federasi.' 
     .primary()
     .text(isId ? '🔒 Privasi' : '🔒 Privacy', 'nav:privacy')
     .primary()
-    .row()
     .text(isId ? '📜 Aturan' : '📜 Rules', 'nav:rules')
+    .primary()
+    .row()
+    .text(isId ? '← Kembali' : '← Back', 'nav:start')
     .primary()
     .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close')
     .danger();
@@ -518,14 +514,9 @@ generalComposer.callbackQuery('nav:start', async (ctx) => {
 
 generalComposer.callbackQuery('nav:help', async (ctx) => {
   await ctx.answerCallbackQuery();
-  const { formatted, keyboard } = buildHelpCard(ctx.locale);
-  keyboard
-    .row()
-    .text(
-      ctx.locale === 'id-ID' ? '▾ Pilih Topik Lengkap' : '▾ Select Topic',
-      'dd:help:open:general',
-    )
-    .primary();
+  const { formatted, keyboard } = buildHelpCard(ctx.locale, {
+    includeDropdownTrigger: true,
+  });
   await ctx.editMessageText(formatted.text, {
     entities: formatted.entities,
     reply_markup: keyboard,

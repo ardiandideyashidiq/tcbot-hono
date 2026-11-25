@@ -1216,10 +1216,10 @@ ${item.body}`;
     )
     .primary()
     .row()
-    .text(isId ? '🗑️ Hapus' : '🗑️ Delete', `rules_editor:del:${item.id}`)
-    .danger()
     .text(isId ? '← Daftar' : '← List', 'rules_editor:list:1')
-    .primary();
+    .primary()
+    .text(isId ? '🗑️ Hapus' : '🗑️ Delete', `rules_editor:del:${item.id}`)
+    .danger();
 
   await ctx
     .editMessageText(formatted.text, {
@@ -1671,9 +1671,9 @@ rulesComposer.callbackQuery('rules_editor:publish', async (ctx) => {
       .row();
   }
   keyboard
-    .text(isId ? '📜 Lihat Aturan' : '📜 View Rules', 'nav:rules')
-    .primary()
     .text(isId ? '← Panel Editor' : '← Editor Panel', 'rules_editor:panel')
+    .primary()
+    .text(isId ? '📜 Lihat Aturan' : '📜 View Rules', 'nav:rules')
     .primary();
 
   await ctx

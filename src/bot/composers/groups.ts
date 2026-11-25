@@ -72,7 +72,8 @@ function buildDetailedGroupsCard(locale: string, groups: ConnectedGroupInfo[]) {
   const keyboard = new InlineKeyboard()
     .text(isId ? '📋 Ringkas' : '📋 Simple', 'groups:simple')
     .primary()
-    .text(isId ? '🏠 Menu' : '🏠 Menu', 'nav:start')
+    .row()
+    .text(isId ? '← Kembali' : '← Back', 'nav:start')
     .primary()
     .text(isId ? '✖ Tutup' : '✖ Close', 'nav:close')
     .danger();

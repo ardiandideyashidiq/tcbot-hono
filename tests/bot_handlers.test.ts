@@ -512,5 +512,39 @@ describe('Telegram Bot MVP end-to-end command handlers', () => {
     expect(
       helpButtons.some((b) => b.callback_data === 'dd:help:pick:mod'),
     ).toBe(true);
+
+    // Consistency check: Back is always left (col 0) of bottom row, Close is always on bottom row
+    for (const cmd of ['/help', '/language', '/formattest']) {
+      await bot.handleUpdate(makeMessageUpdate(cmd));
+      const msg = calls.filter((c) => c.method === 'sendMessage').at(-1);
+      const rows =
+        (
+          msg?.payload.reply_markup as {
+            inline_keyboard?: Array<
+              Array<{ text: string; callback_data?: string }>
+            >;
+          }
+        )?.inline_keyboard ?? [];
+      const lastRow = rows.at(-1) ?? [];
+      expect(lastRow[0]?.callback_data).toBe('nav:start');
+      expect(lastRow.at(-1)?.callback_data).toBe('nav:close');
+      for (const row of rows.slice(0, -1)) {
+        expect(row.some((b) => b.callback_data === 'nav:close')).toBe(false);
+        expect(row.some((b) => b.callback_data === 'nav:start')).toBe(false);
+      }
+    }
+
+    await bot.handleUpdate(makeMessageUpdate('/ping'));
+    const pingEdit = calls.filter((c) => c.method === 'editMessageText').at(-1);
+    const pingRows =
+      (
+        pingEdit?.payload.reply_markup as {
+          inline_keyboard?: Array<
+            Array<{ text: string; callback_data?: string }>
+          >;
+        }
+      )?.inline_keyboard ?? [];
+    expect(pingRows.at(-1)?.[0]?.callback_data).toBe('nav:start');
+    expect(pingRows.at(-1)?.at(-1)?.callback_data).toBe('nav:close');
   });
 });
