@@ -35,7 +35,9 @@ const baseEnv = {
 } as unknown as CloudflareBindings;
 
 async function getAdminCookieHeader(env: CloudflareBindings): Promise<string> {
-  const token = await signAdminSession('admin', getSessionSecret(env));
+  const secret = getSessionSecret(env);
+  if (!secret) throw new Error('Expected test session secret');
+  const token = await signAdminSession('admin', secret);
   return `tcbot_admin_session=${encodeURIComponent(token)}`;
 }
 
@@ -152,11 +154,63 @@ describe('tcbot-hono foundation routes', () => {
       baseEnv,
     );
     expect(sessionRes.status).toBe(200);
+    expect(sessionRes.headers.get('Cache-Control')).toBe('no-store');
     expect(await sessionRes.json()).toEqual({
       configured: true,
       authenticated: true,
       username: 'admin',
     });
+  });
+
+  it('POST /api/auth/login enforces same-origin CSRF check and brute-force rate limiting', async () => {
+    const csrfRes = await app.request(
+      '/api/auth/login',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Origin: 'https://evil.example',
+        },
+        body: JSON.stringify({
+          username: 'admin',
+          password: 'test_admin_password',
+        }),
+      },
+      baseEnv,
+    );
+    expect(csrfRes.status).toBe(403);
+
+    const ipHeaders = {
+      'Content-Type': 'application/json',
+      'cf-connecting-ip': '203.0.113.42',
+    };
+    for (let i = 0; i < 5; i += 1) {
+      const failRes = await app.request(
+        '/api/auth/login',
+        {
+          method: 'POST',
+          headers: ipHeaders,
+          body: JSON.stringify({ username: 'admin', password: 'wrong' }),
+        },
+        baseEnv,
+      );
+      expect(failRes.status).toBe(401);
+    }
+
+    const limitedRes = await app.request(
+      '/api/auth/login',
+      {
+        method: 'POST',
+        headers: ipHeaders,
+        body: JSON.stringify({
+          username: 'admin',
+          password: 'test_admin_password',
+        }),
+      },
+      baseEnv,
+    );
+    expect(limitedRes.status).toBe(429);
+    expect(limitedRes.headers.get('Retry-After')).toBe('60');
   });
 
   it('GET /api/ledger/* endpoints return unconfigured empty lists with pagination when authenticated and supabase is unset', async () => {

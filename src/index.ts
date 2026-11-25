@@ -12,6 +12,13 @@ const app = new Hono<AppEnv>()
   .use('/api/*', async (c, next) => {
     await next();
     c.header('X-Content-Type-Options', 'nosniff');
+    c.header('Referrer-Policy', 'no-referrer');
+    if (
+      c.req.path.startsWith('/api/auth/') ||
+      c.req.path.startsWith('/api/ledger/')
+    ) {
+      c.header('Cache-Control', 'no-store');
+    }
   })
   .use('/webhook/*', async (c, next) => {
     await next();

@@ -44,12 +44,10 @@ export function getSessionSecret(
   env: Partial<
     Pick<CloudflareBindings, 'ADMIN_SESSION_SECRET' | 'TELEGRAM_WEBHOOK_SECRET'>
   >,
-): string {
-  return (
-    env.ADMIN_SESSION_SECRET?.trim() ||
-    env.TELEGRAM_WEBHOOK_SECRET?.trim() ||
-    'tcbot-dev-session-secret'
-  );
+): string | null {
+  const secret =
+    env.ADMIN_SESSION_SECRET?.trim() || env.TELEGRAM_WEBHOOK_SECRET?.trim();
+  return secret && secret.length >= 16 ? secret : null;
 }
 
 async function importHmacKey(secret: string): Promise<CryptoKey> {
@@ -151,9 +149,33 @@ export async function verifyAdminRequest(
     Pick<CloudflareBindings, 'ADMIN_SESSION_SECRET' | 'TELEGRAM_WEBHOOK_SECRET'>
   >,
 ): Promise<{ username: string } | null> {
+  const secret = getSessionSecret(env);
+  if (!secret) return null;
   const token = extractSessionCookie(cookieHeader);
   if (!token) return null;
-  return verifyAdminSessionToken(token, getSessionSecret(env));
+  return verifyAdminSessionToken(token, secret);
+}
+
+/**
+ * Blocks cross-site browser CSRF attempts on cookie-authenticated mutations
+ * using Origin and Fetch Metadata (`Sec-Fetch-Site`) headers.
+ */
+export function isTrustedSameOriginMutation(
+  requestUrl: string,
+  originHeader?: string,
+  secFetchSiteHeader?: string,
+): boolean {
+  if (secFetchSiteHeader === 'cross-site') {
+    return false;
+  }
+  if (originHeader) {
+    try {
+      return new URL(originHeader).origin === new URL(requestUrl).origin;
+    } catch {
+      return false;
+    }
+  }
+  return true;
 }
 
 export function buildSessionCookie(

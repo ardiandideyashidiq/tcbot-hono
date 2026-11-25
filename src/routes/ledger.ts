@@ -2,7 +2,7 @@ import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { z } from 'zod';
-import { verifyAdminRequest } from '../lib/auth';
+import { isTrustedSameOriginMutation, verifyAdminRequest } from '../lib/auth';
 import { type AppEnv, hasSupabaseConfig } from '../lib/env';
 import { createSupabaseAdmin, type TypedSupabaseClient } from '../lib/supabase';
 import { syncUnbanToTelegram } from '../lib/telegram-sync';
@@ -99,6 +99,17 @@ function formatDisplayName(
 
 const ledgerApp = new Hono<AppEnv>()
   .use('*', async (c, next) => {
+    if (
+      c.req.method !== 'GET' &&
+      c.req.method !== 'HEAD' &&
+      !isTrustedSameOriginMutation(
+        c.req.url,
+        c.req.header('Origin'),
+        c.req.header('Sec-Fetch-Site'),
+      )
+    ) {
+      throw new HTTPException(403, { message: 'Forbidden' });
+    }
     const session = await verifyAdminRequest(c.req.header('Cookie'), c.env);
     if (!session) {
       throw new HTTPException(401, { message: 'Unauthorized' });

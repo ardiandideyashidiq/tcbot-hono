@@ -34,10 +34,9 @@ const configuredEnv = {
 } as unknown as CloudflareBindings;
 
 async function adminHeaders() {
-  const token = await signAdminSession(
-    'admin',
-    getSessionSecret(configuredEnv),
-  );
+  const secret = getSessionSecret(configuredEnv);
+  if (!secret) throw new Error('Expected test session secret');
+  const token = await signAdminSession('admin', secret);
   return { Cookie: `tcbot_admin_session=${encodeURIComponent(token)}` };
 }
 

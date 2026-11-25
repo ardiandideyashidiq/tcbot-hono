@@ -255,7 +255,7 @@ async function run() {
 
     const adminToken = await signAdminSession(
       'admin',
-      getSessionSecret(benchEnv),
+      getSessionSecret(benchEnv) ?? 'bench_fallback_secret_value',
     );
     const adminCookie = `tcbot_admin_session=${encodeURIComponent(adminToken)}`;
 
