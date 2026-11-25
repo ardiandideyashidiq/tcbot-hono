@@ -17,7 +17,12 @@ import {
 } from './db';
 
 export function createBot(env: CloudflareBindings): Bot<BotContext> {
-  const bot = new Bot<BotContext>(env.TELEGRAM_BOT_TOKEN);
+  const bot = new Bot<BotContext>(env.TELEGRAM_BOT_TOKEN, {
+    client: {
+      fetch: ((url: string | URL | Request, init?: RequestInit) =>
+        globalThis.fetch(url, init)) as never,
+    },
+  });
 
   bot.api.config.use(autoRetry());
 

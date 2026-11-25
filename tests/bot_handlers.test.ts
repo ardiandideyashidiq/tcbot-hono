@@ -34,6 +34,8 @@ interface ApiCall {
   payload: Record<string, unknown>;
 }
 
+const FIXED_TIMESTAMP = 1_700_000_000;
+
 function createHarness() {
   const bot = createBot(testEnv);
   const calls: ApiCall[] = [];
@@ -68,7 +70,7 @@ function createHarness() {
         ok: true,
         result: {
           message_id: 42,
-          date: Math.floor(Date.now() / 1000),
+          date: FIXED_TIMESTAMP,
           chat: { id: 1001, type: 'private', first_name: 'Owner' },
           text: String((payload as Record<string, unknown>).text ?? ''),
         },
@@ -80,6 +82,8 @@ function createHarness() {
 
   return { bot, calls };
 }
+
+let nextUpdateId = 100;
 
 function makeMessageUpdate(
   text: string,
@@ -94,12 +98,13 @@ function makeMessageUpdate(
   const userId = opts?.userId ?? 1001;
   const chatId = opts?.chatId ?? userId;
   const chatType = opts?.chatType ?? 'private';
+  nextUpdateId += 1;
 
   return {
-    update_id: Math.floor(Math.random() * 100000),
+    update_id: nextUpdateId,
     message: {
       message_id: 10,
-      date: Math.floor(Date.now() / 1000),
+      date: FIXED_TIMESTAMP,
       chat:
         chatType === 'private'
           ? { id: chatId, type: 'private', first_name: 'User' }
@@ -122,7 +127,7 @@ function makeMessageUpdate(
         ? {
             reply_to_message: {
               message_id: 9,
-              date: Math.floor(Date.now() / 1000),
+              date: FIXED_TIMESTAMP,
               chat:
                 chatType === 'private'
                   ? { id: chatId, type: 'private', first_name: 'Target' }
