@@ -69,6 +69,7 @@ import {
 import { AdminLogin } from './components/AdminLogin';
 import { AppSidebar } from './components/AppSidebar';
 import { CaseDossier } from './components/CaseDossier';
+import { LedgerMiniChart } from './components/CommunityCharts';
 import { PaginationBar, type PaginationMeta } from './components/PaginationBar';
 import { PublicDashboard } from './components/PublicDashboard';
 import {
@@ -586,11 +587,21 @@ function AdminConsole({
           <SidebarInset className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <header className="flex min-h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-card px-4 pt-[env(safe-area-inset-top,0px)] sm:px-6">
               <div className="flex items-center gap-3">
-                <SidebarTrigger />
+                <SidebarTrigger className="min-h-10 min-w-10 sm:min-h-8 sm:min-w-8" />
                 <Separator orientation="vertical" className="h-5" />
-                <h1 className="text-base font-semibold tracking-tight text-foreground">
-                  {SECTION_TITLES[activeSection]}
-                </h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-base font-semibold tracking-tight text-foreground">
+                    {SECTION_TITLES[activeSection]}
+                  </h1>
+                  <Badge
+                    variant={
+                      adminRole === 'superadmin' ? 'default' : 'secondary'
+                    }
+                    className="hidden sm:inline-flex"
+                  >
+                    {adminUsername} · {adminRole}
+                  </Badge>
+                </div>
               </div>
 
               <div className="flex items-center gap-2">
@@ -667,17 +678,40 @@ function AdminConsole({
             <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] sm:gap-5 sm:p-6">
               {activeSection === 'appeals' ? (
                 <>
-                  {pendingCount > 0 && (
-                    <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 rounded-lg border border-border bg-card px-5 py-3">
-                      <p className="text-sm text-foreground">
-                        <span className="font-semibold">
-                          {pendingCount} banding
-                        </span>{' '}
-                        menunggu peninjauan moderator.
-                      </p>
+                  <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 rounded-xl border border-border/80 bg-card/95 px-4 py-3 shadow-xs sm:px-5">
+                    <div className="flex items-center gap-3.5">
+                      <LedgerMiniChart
+                        labels={['Menunggu', 'Disetujui', 'Ditolak']}
+                        values={[
+                          cases.filter((c) => c.status === 'pending').length,
+                          cases.filter((c) => c.status === 'approved').length,
+                          cases.filter((c) => c.status === 'rejected').length,
+                        ]}
+                        colors={['#F59E0B', '#10B981', '#E11D48']}
+                        darkMode={darkMode}
+                        ariaLabel="Ringkasan status banding halaman ini"
+                      />
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">
+                          {pendingCount > 0
+                            ? `${pendingCount} banding menunggu tinjauan`
+                            : 'Semua banding pada halaman ini telah ditinjau'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Total {pagination.total.toLocaleString('id-ID')} entri
+                          ·{' '}
+                          {cases.filter((c) => c.status === 'approved').length}{' '}
+                          disetujui ·{' '}
+                          {cases.filter((c) => c.status === 'rejected').length}{' '}
+                          ditolak
+                        </p>
+                      </div>
+                    </div>
+                    {pendingCount > 0 && (
                       <Button
                         variant="outline"
                         size="sm"
+                        className="min-h-10 sm:min-h-8"
                         onClick={() => {
                           setPage(1);
                           setStatusTab('pending');
@@ -685,8 +719,8 @@ function AdminConsole({
                       >
                         Tampilkan antrean aktif
                       </Button>
-                    </div>
-                  )}
+                    )}
+                  </div>
 
                   <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-12">
                     <section className="flex min-h-0 flex-col rounded-lg border border-border bg-card lg:col-span-7">
