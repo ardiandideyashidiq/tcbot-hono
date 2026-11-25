@@ -10,7 +10,7 @@ CREATE INDEX IF NOT EXISTS ix_connected_chats_added_desc
   ON public.connected_chats (added_at DESC);
 
 CREATE INDEX IF NOT EXISTS ix_rule_items_version_sort
-  ON public.rule_items (version_id, sort_order ASC);
+  ON public.rule_items (rule_set_version_id, sort_order ASC);
 
 CREATE INDEX IF NOT EXISTS ix_role_assignments_status_assigned_desc
   ON public.role_assignments (status, assigned_at DESC);
